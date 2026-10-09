@@ -177,7 +177,7 @@ export function Landing() {
       </a>
 
       {/* ---------- Nav ---------- */}
-      <header className="sticky top-0 z-40 px-3 pt-3 md:px-6">
+      <header className="sticky top-0 z-40 bg-gradient-to-b from-mist via-mist/85 to-transparent px-3 pt-3 pb-4 md:px-6">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 rounded-full border border-ink/5 bg-surface/75 p-1.5 pl-2 shadow-soft backdrop-blur-xl">
           <a href="/" className="flex items-center gap-2" aria-label="Sahayatri home">
             <span className="grid size-10 place-items-center rounded-full bg-charcoal font-deva text-xl text-sun" aria-hidden>
