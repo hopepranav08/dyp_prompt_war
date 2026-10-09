@@ -66,7 +66,7 @@ export function ComparePanel() {
               <Plus className="size-4" aria-hidden /> Add place
             </button>
           )}
-          <button className="btn flex-1 bg-gblue-ink text-white" disabled={loading}>
+          <button className="btn flex-1 bg-ink text-white" disabled={loading}>
             <Scale className="size-4" aria-hidden /> Compare
           </button>
         </div>
@@ -103,15 +103,15 @@ export function ComparePanel() {
                   const best = r.place.id === result.bestId;
                   const worst = r.place.id === result.worstId && !best;
                   return (
-                    <motion.li key={r.place.id} custom={i} variants={listItem} initial="hidden" animate="show" className={`card p-4 ${best ? 'ring-2 ring-ggreen-ink' : ''}`}>
+                    <motion.li key={r.place.id} custom={i} variants={listItem} initial="hidden" animate="show" className={`card p-4 ${best ? 'ring-2 ring-sun' : ''}`}>
                       <div className="mb-2 flex flex-wrap items-center gap-2">
                         {best && (
-                          <span className="chip bg-ggreen-ink text-white">
+                          <span className="chip bg-ok text-white">
                             <Crown className="size-3.5" aria-hidden /> Best
                           </span>
                         )}
                         {worst && (
-                          <span className="chip bg-gred-ink text-white">
+                          <span className="chip bg-danger text-white">
                             <ThumbsDown className="size-3.5" aria-hidden /> Worst
                           </span>
                         )}

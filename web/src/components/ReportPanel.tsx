@@ -4,17 +4,19 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, blobToBase64, compressImage, type MediaPayload } from '../lib/api';
 import { prettyCategory, STATUS_STYLE } from '../lib/format';
 import type { LatLng, Report } from '../lib/types';
+import { LiveReports } from './LiveReports';
 import { ErrorNote, ScoreBadge, SectionTitle, Spinner } from './ui';
 
 interface Props {
   location: LatLng;
+  reports: Report[];
   onLocate: (p: LatLng) => void;
   onCreated: (r: Report) => void;
 }
 
 const MAX_RECORD_MS = 30_000;
 
-export function ReportPanel({ location, onLocate, onCreated }: Props) {
+export function ReportPanel({ location, reports, onLocate, onCreated }: Props) {
   const [text, setText] = useState('');
   const [image, setImage] = useState<{ payload: MediaPayload; preview: string } | null>(null);
   const [audio, setAudio] = useState<{ payload: MediaPayload; url: string } | null>(null);
@@ -115,7 +117,7 @@ export function ReportPanel({ location, onLocate, onCreated }: Props) {
             <Camera className="size-4" aria-hidden /> Photo
             <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="sr-only" onChange={(e) => void onPhoto(e.target.files?.[0])} />
           </label>
-          <button type="button" className={`btn ${recording ? 'bg-gred-ink text-white' : 'bg-white'}`} onClick={() => void toggleRecording()} aria-pressed={recording}>
+          <button type="button" className={`btn ${recording ? 'bg-danger text-white' : 'bg-white'}`} onClick={() => void toggleRecording()} aria-pressed={recording}>
             {recording ? <Square className="size-4" aria-hidden /> : <Mic className="size-4" aria-hidden />}
             {recording ? 'Stop recording' : 'Voice note'}
           </button>
@@ -132,8 +134,8 @@ export function ReportPanel({ location, onLocate, onCreated }: Props) {
           <div className="flex flex-wrap items-center gap-3">
             {image && (
               <div className="relative">
-                <img src={image.preview} alt="Attached photo preview" className="h-20 w-28 rounded-md border-2 border-ink object-cover" />
-                <button type="button" onClick={() => setImage(null)} className="absolute -top-2 -right-2 rounded-full border-2 border-ink bg-white p-1" aria-label="Remove photo">
+                <img src={image.preview} alt="Attached photo preview" className="h-20 w-28 rounded-2xl border border-ink/10 object-cover" />
+                <button type="button" onClick={() => setImage(null)} className="absolute -top-2 -right-2 rounded-full border border-ink/10 bg-white p-1" aria-label="Remove photo">
                   <Trash2 className="size-3" aria-hidden />
                 </button>
               </div>
@@ -141,7 +143,7 @@ export function ReportPanel({ location, onLocate, onCreated }: Props) {
             {audio && (
               <div className="flex items-center gap-2">
                 <audio controls src={audio.url} className="h-10" aria-label="Recorded voice note" />
-                <button type="button" onClick={() => setAudio(null)} className="rounded-full border-2 border-ink bg-white p-1" aria-label="Remove voice note">
+                <button type="button" onClick={() => setAudio(null)} className="rounded-full border border-ink/10 bg-white p-1" aria-label="Remove voice note">
                   <Trash2 className="size-3" aria-hidden />
                 </button>
               </div>
@@ -149,7 +151,7 @@ export function ReportPanel({ location, onLocate, onCreated }: Props) {
           </div>
         )}
 
-        <button className="btn w-full bg-gred-ink text-white" disabled={!canSend}>
+        <button className="btn w-full bg-ink text-white" disabled={!canSend}>
           <Send className="size-4" aria-hidden /> Submit report
         </button>
       </form>
@@ -170,14 +172,14 @@ export function ReportPanel({ location, onLocate, onCreated }: Props) {
               </div>
             </div>
             <p className="mt-3 text-sm">{report.summary}</p>
-            {report.transcript && <p className="mt-2 border-l-4 border-gblue pl-3 text-sm italic">“{report.transcript}”</p>}
+            {report.transcript && <p className="mt-2 border-l-4 border-sun pl-3 text-sm italic">“{report.transcript}”</p>}
 
             <h4 className="mt-4 text-sm font-bold">Why this trust score</h4>
             <ul className="mt-1 space-y-1 text-xs">
               {report.signals.map((s) => (
                 <li key={s.label} className="flex justify-between gap-2">
                   <span>{s.label}</span>
-                  <span className={`font-mono font-bold ${s.delta >= 0 ? 'text-ggreen-ink' : 'text-gred-ink'}`}>
+                  <span className={`font-mono font-bold ${s.delta >= 0 ? 'text-ok' : 'text-danger'}`}>
                     {s.delta >= 0 ? '+' : ''}
                     {s.delta}
                   </span>
@@ -191,11 +193,12 @@ export function ReportPanel({ location, onLocate, onCreated }: Props) {
                 <li key={a}>{a}</li>
               ))}
             </ul>
-            <p className="mt-3 flex items-center gap-2 rounded-md border-2 border-ink bg-cream p-2 text-sm font-semibold">
+            <p className="mt-3 flex items-center gap-2 rounded-2xl border border-ink/10 bg-cream p-2 text-sm font-semibold">
               <Phone className="size-4" aria-hidden /> {report.authority}
             </p>
           </motion.article>
         )}
+        <LiveReports reports={reports} />
       </div>
     </div>
   );

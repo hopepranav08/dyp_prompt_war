@@ -39,7 +39,7 @@ flowchart LR
 ```
 
 - **`server/`**: Express 5 + TypeScript. Each feature is a small router (`routes/`). The pure scoring logic (`services/risk.ts`, `services/trust.ts`) is deterministic, and each of its rules has focused unit tests. External services sit behind interfaces (`AiClient`, `MapsClient`, `ReportStore`), so tests run with fakes.
-- **`web/`**: React 19 + Vite + Tailwind v4 + Motion, with `@vis.gl/react-google-maps` for the map. Light-brutalist UI in Google colours; the chart bundle is code-split.
+- **`web/`**: React 19 + Vite + Tailwind v4 + Motion, with `@vis.gl/react-google-maps` for the map. Two pages: a landing story (`/`) with a Devanagari **सहयात्री** wordmark set in *Yatra One*, and the co-pilot (`/app`). The soft-premium UI uses Outfit + Instrument Serif, sunflower and charcoal colours, semicircle score gauges, and a warm monochrome map with accessible HTML markers (real `<button>`s). The chart bundle is code-split.
 - **One container** serves both on Cloud Run (`asia-south1`).
 
 ### Google services used (12)

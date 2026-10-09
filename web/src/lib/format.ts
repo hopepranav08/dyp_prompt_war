@@ -3,14 +3,14 @@ export const km = (m: number) => `${(m / 1000).toFixed(1)} km`;
 
 /** Score band shared by every 0–100 score in the UI so colours always mean the same thing. */
 export function scoreTone(score: number): { label: string; bg: string; text: string } {
-  if (score >= 70) return { label: 'Good', bg: 'bg-ggreen', text: 'text-ggreen-ink' };
-  if (score >= 45) return { label: 'Caution', bg: 'bg-gyellow', text: 'text-ink' };
-  return { label: 'Risky', bg: 'bg-gred', text: 'text-gred-ink' };
+  if (score >= 70) return { label: 'Good', bg: 'bg-ok', text: 'text-ok' };
+  if (score >= 45) return { label: 'Caution', bg: 'bg-sun', text: 'text-ink' };
+  return { label: 'Risky', bg: 'bg-danger', text: 'text-danger' };
 }
 
 export const STATUS_STYLE = {
-  verified: { label: 'Verified', className: 'bg-ggreen-ink text-white' },
-  corroborated: { label: 'Corroborated', className: 'bg-gyellow text-ink' },
+  verified: { label: 'Verified', className: 'bg-ok text-white' },
+  corroborated: { label: 'Corroborated', className: 'bg-sun text-ink' },
   unverified: { label: 'Unverified', className: 'bg-white text-ink' },
 } as const;
 

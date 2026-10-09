@@ -11,6 +11,7 @@ const RESPONSES: Record<string, unknown> = {
 };
 
 beforeEach(() => {
+  window.history.pushState({}, '', '/app');
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string) => new Response(JSON.stringify(RESPONSES[url] ?? {}), { status: 200 })),
@@ -55,5 +56,16 @@ describe('App', () => {
     expect(submit).toBeDisabled();
     await user.type(screen.getByLabelText('What’s happening?'), 'Pothole near Deccan');
     expect(submit).toBeEnabled();
+  });
+});
+
+describe('Landing', () => {
+  it('shows the bilingual brand and links into the co-pilot', () => {
+    window.history.pushState({}, '', '/');
+    render(<App />);
+    expect(screen.getByRole('heading', { level: 1, name: /Sahayatri \(सहयात्री\)/ })).toBeInTheDocument();
+    const ctas = screen.getAllByRole('link', { name: /open the co-pilot/i });
+    expect(ctas.length).toBeGreaterThan(0);
+    ctas.forEach((a) => expect(a).toHaveAttribute('href', '/app'));
   });
 });

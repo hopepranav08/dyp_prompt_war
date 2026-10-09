@@ -49,7 +49,7 @@ export function ExplorePanel({ location, onResult }: Props) {
         Every place is checked against Google Places and gets a live area-safety score.
       </SectionTitle>
 
-      <div className="mb-3 inline-flex rounded-[10px] border-2 border-ink bg-white p-1" role="radiogroup" aria-label="Explore mode">
+      <div className="mb-3 inline-flex rounded-full border border-ink/10 bg-white p-1" role="radiogroup" aria-label="Explore mode">
         {(['explore', 'heritage'] as const).map((m) => (
           <button
             key={m}
@@ -57,7 +57,7 @@ export function ExplorePanel({ location, onResult }: Props) {
             role="radio"
             aria-checked={mode === m}
             onClick={() => setMode(m)}
-            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-display text-sm font-semibold ${mode === m ? 'bg-ink text-white' : ''}`}
+            className={`flex items-center gap-1.5 rounded-2xl px-3 py-1.5 text-sm font-semibold ${mode === m ? 'bg-ink text-white' : ''}`}
           >
             {m === 'explore' ? <Sparkles className="size-4" aria-hidden /> : <Landmark className="size-4" aria-hidden />}
             {m === 'explore' ? 'Food, stays & fun' : 'Heritage stories'}
@@ -70,7 +70,7 @@ export function ExplorePanel({ location, onResult }: Props) {
           What are you looking for?
         </label>
         <input id="explore-q" className="field" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. vada pav under ₹50 near Swargate" maxLength={300} />
-        <button className="btn bg-gblue-ink text-white" disabled={loading || query.trim().length < 2}>
+        <button className="btn bg-ink text-white" disabled={loading || query.trim().length < 2}>
           <Search className="size-4" aria-hidden />
           <span className="sr-only sm:not-sr-only">Ask</span>
         </button>
@@ -94,13 +94,13 @@ export function ExplorePanel({ location, onResult }: Props) {
             {result.heritage && (
               <motion.article initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="card p-4">
                 <h3 className="mb-2 flex items-center gap-2 text-lg font-bold">
-                  <Landmark className="size-5 text-gred-ink" aria-hidden /> The story
+                  <Landmark className="size-5 text-danger" aria-hidden /> The story
                 </h3>
                 <p className="text-sm leading-relaxed">{result.heritage.story}</p>
                 {result.heritage.traditions.length > 0 && (
                   <ul className="mt-3 flex flex-wrap gap-2">
                     {result.heritage.traditions.map((t) => (
-                      <li key={t} className="chip bg-gyellow">
+                      <li key={t} className="chip bg-sun">
                         {t}
                       </li>
                     ))}
@@ -113,14 +113,14 @@ export function ExplorePanel({ location, onResult }: Props) {
               {result.places.map((p, i) => (
                 <motion.li key={`${p.name}-${i}`} custom={i} variants={listItem} initial="hidden" animate="show" className="card p-4">
                   <div className="flex items-start gap-3">
-                    <span className="grid size-8 shrink-0 place-items-center rounded-full border-2 border-ink bg-gblue-ink font-display font-bold text-white" aria-hidden>
+                    <span className="grid size-8 shrink-0 place-items-center rounded-full border border-ink/10 bg-ink font-bold text-white" aria-hidden>
                       {i + 1}
                     </span>
                     <div className="min-w-0 flex-1">
                       <h3 className="flex flex-wrap items-center gap-2 font-bold">
                         {p.name}
                         {p.verified && (
-                          <span className="chip bg-ggreen-ink text-white" title="Confirmed on Google Places">
+                          <span className="chip bg-ok text-white" title="Confirmed on Google Places">
                             <BadgeCheck className="size-3.5" aria-hidden /> Verified place
                           </span>
                         )}
@@ -130,7 +130,7 @@ export function ExplorePanel({ location, onResult }: Props) {
                         {p.place?.rating !== undefined && (
                           <>
                             {' · '}
-                            <Star className="inline size-3 fill-gyellow" aria-hidden /> {p.place.rating} ({p.place.ratingCount ?? 0} reviews)
+                            <Star className="inline size-3 fill-sun" aria-hidden /> {p.place.rating} ({p.place.ratingCount ?? 0} reviews)
                           </>
                         )}
                       </p>
@@ -147,7 +147,7 @@ export function ExplorePanel({ location, onResult }: Props) {
                           <dd>{p.bestTime}</dd>
                         </div>
                         <div className="flex gap-1.5 sm:col-span-2">
-                          <ShieldAlert className="size-3.5 shrink-0 text-gred-ink" aria-hidden />
+                          <ShieldAlert className="size-3.5 shrink-0 text-danger" aria-hidden />
                           <dt className="sr-only">Safety note</dt>
                           <dd>
                             {p.safetyNote}
@@ -156,7 +156,7 @@ export function ExplorePanel({ location, onResult }: Props) {
                         </div>
                       </dl>
                       {p.place?.mapsUri && (
-                        <a href={p.place.mapsUri} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-gblue-ink underline">
+                        <a href={p.place.mapsUri} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-ink underline">
                           Open in Google Maps <ExternalLink className="size-3" aria-hidden />
                           <span className="sr-only">(opens in new tab)</span>
                         </a>

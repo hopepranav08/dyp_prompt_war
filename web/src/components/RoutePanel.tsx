@@ -13,9 +13,9 @@ const MODES = [
 ] as const;
 
 const TAG_STYLE: Record<RouteTag, { label: string; className: string; Icon: typeof Zap }> = {
-  safest: { label: 'Safest', className: 'bg-ggreen-ink text-white', Icon: ShieldCheck },
-  fastest: { label: 'Fastest', className: 'bg-gblue-ink text-white', Icon: Zap },
-  balanced: { label: 'Balanced', className: 'bg-gyellow text-ink', Icon: ArrowRightLeft },
+  safest: { label: 'Safest', className: 'bg-ok text-white', Icon: ShieldCheck },
+  fastest: { label: 'Fastest', className: 'bg-ink text-white', Icon: Zap },
+  balanced: { label: 'Balanced', className: 'bg-sun text-ink', Icon: ArrowRightLeft },
 };
 
 interface Props {
@@ -95,7 +95,7 @@ export function RoutePanel({ selectedId, onResult, onSelect }: Props) {
           ))}
         </fieldset>
 
-        <button className="btn w-full bg-ggreen-ink text-white" disabled={loading}>
+        <button className="btn w-full bg-ink text-white" disabled={loading}>
           <Navigation className="size-4" aria-hidden /> Find the safest way
         </button>
       </form>
@@ -131,7 +131,7 @@ export function RoutePanel({ selectedId, onResult, onSelect }: Props) {
                       type="button"
                       onClick={() => onSelect(r.id)}
                       aria-pressed={selected}
-                      className={`card w-full p-4 text-left transition-transform ${selected ? '-translate-x-0.5 -translate-y-0.5 shadow-brutal-lg ring-2 ring-gblue-ink' : ''}`}
+                      className={`card w-full p-4 text-left transition-transform ${selected ? '-translate-x-0.5 -translate-y-0.5 shadow-lift ring-2 ring-sun' : ''}`}
                     >
                       <div className="flex items-start gap-3">
                         <ScoreBadge score={r.safetyScore} label="Route safety" />
@@ -146,7 +146,7 @@ export function RoutePanel({ selectedId, onResult, onSelect }: Props) {
                               );
                             })}
                           </div>
-                          <p className="mt-1 font-display font-bold">via {r.description || `route ${i + 1}`}</p>
+                          <p className="mt-1 font-bold">via {r.description || `route ${i + 1}`}</p>
                           <p className="font-mono text-sm">
                             {minutes(r.durationSec)} · {km(r.distanceM)}
                           </p>
@@ -155,12 +155,12 @@ export function RoutePanel({ selectedId, onResult, onSelect }: Props) {
                               {r.factors.map((f) => (
                                 <li key={f.label} className="flex justify-between gap-2">
                                   <span>{f.label}</span>
-                                  <span className="font-mono text-gred-ink">−{Math.round(f.points * 1.6)}</span>
+                                  <span className="font-mono text-danger">−{Math.round(f.points * 1.6)}</span>
                                 </li>
                               ))}
                             </ul>
                           ) : (
-                            <p className="mt-2 text-xs text-ggreen-ink">No known risks on this route.</p>
+                            <p className="mt-2 text-xs text-ok">No known risks on this route.</p>
                           )}
                         </div>
                       </div>

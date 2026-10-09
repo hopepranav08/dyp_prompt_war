@@ -5,8 +5,10 @@ import { scoreTone } from '../lib/format';
 
 export function Spinner({ label }: { label: string }) {
   return (
-    <div role="status" aria-live="polite" className="flex items-center gap-3 py-6 font-display font-semibold">
-      <Loader2 className="size-5 animate-spin text-gblue-ink" aria-hidden />
+    <div role="status" aria-live="polite" className="flex items-center gap-3 py-6 font-medium">
+      <span className="grid size-9 place-items-center rounded-full bg-sun">
+        <Loader2 className="size-4 animate-spin" aria-hidden />
+      </span>
       <span>{label}</span>
     </div>
   );
@@ -14,51 +16,66 @@ export function Spinner({ label }: { label: string }) {
 
 export function ErrorNote({ message }: { message: string }) {
   return (
-    <div role="alert" className="card flex items-start gap-2 bg-[#fde8e6] p-3 text-sm">
-      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-gred-ink" aria-hidden />
+    <div role="alert" className="card flex items-start gap-2 bg-[#fdecea] p-4 text-sm">
+      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden />
       <span>{message}</span>
     </div>
   );
 }
 
-/** Compact circular 0–100 score with a text label for screen readers. */
-export function ScoreBadge({ score, label, size = 56 }: { score: number; label: string; size?: number }) {
+const ARC_LENGTH = Math.PI * 40;
+
+/**
+ * Semicircle gauge (sunflower value arc + charcoal remainder), used for every 0–100 score.
+ * Exposed to assistive tech as an image with a full text label.
+ */
+export function ScoreBadge({ score, label, size = 72, dark = false }: { score: number; label: string; size?: number; dark?: boolean }) {
   const tone = scoreTone(score);
-  const r = size / 2 - 5;
-  const c = 2 * Math.PI * r;
+  const value = (Math.max(0, Math.min(100, score)) / 100) * ARC_LENGTH;
+  const gap = score > 0 && score < 100 ? 7 : 0;
   return (
-    <div className="relative shrink-0" style={{ width: size, height: size }} role="img" aria-label={`${label}: ${score} out of 100, ${tone.label}`}>
-      <svg width={size} height={size} className="-rotate-90" aria-hidden>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="white" stroke="var(--color-ink)" strokeWidth={2} />
-        <motion.circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
+    <div className="relative shrink-0" style={{ width: size }} role="img" aria-label={`${label}: ${score} out of 100, ${tone.label}`}>
+      <svg viewBox="0 0 100 58" width={size} aria-hidden>
+        <path
+          d="M 10 50 A 40 40 0 0 1 90 50"
           fill="none"
-          strokeWidth={6}
+          stroke={dark ? '#5a5a5a' : 'var(--color-charcoal)'}
+          strokeWidth={11}
           strokeLinecap="round"
-          className={tone.bg.replace('bg-', 'stroke-')}
-          strokeDasharray={c}
-          initial={{ strokeDashoffset: c }}
-          animate={{ strokeDashoffset: c - (score / 100) * c }}
-          transition={{ duration: 0.9, ease: 'easeOut' }}
+          strokeDasharray={`0 ${value + gap} ${ARC_LENGTH}`}
+        />
+        <motion.path
+          d="M 10 50 A 40 40 0 0 1 90 50"
+          fill="none"
+          stroke="var(--color-sun)"
+          strokeWidth={11}
+          strokeLinecap="round"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: score / 100 }}
+          transition={{ duration: 1, ease: 'easeOut' }}
         />
       </svg>
-      <span className="absolute inset-0 grid place-items-center font-mono text-sm font-bold">{score}</span>
+      <span className="absolute inset-x-0 bottom-0 text-center leading-none font-medium" style={{ fontSize: size * 0.26 }}>
+        {score}
+      </span>
     </div>
   );
 }
 
 export function ScoreBar({ label, value }: { label: string; value: number }) {
-  const tone = scoreTone(value);
   return (
     <div>
-      <div className="mb-1 flex justify-between text-xs font-semibold">
-        <span>{label}</span>
+      <div className="mb-1 flex justify-between text-xs font-medium">
+        <span className="text-muted">{label}</span>
         <span className="font-mono">{value}</span>
       </div>
-      <div className="h-3 overflow-hidden rounded-full border-2 border-ink bg-white" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={value} aria-label={label}>
-        <motion.div className={`h-full ${tone.bg}`} initial={{ width: 0 }} animate={{ width: `${value}%` }} transition={{ duration: 0.8, ease: 'easeOut' }} />
+      <div className="h-2.5 overflow-hidden rounded-full bg-ink/8" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={value} aria-label={label}>
+        <motion.div
+          className={`h-full rounded-full ${value >= 70 ? 'bg-ink' : value >= 45 ? 'bg-sun' : 'bg-danger'}`}
+          initial={{ width: 0 }}
+          animate={{ width: `${value}%` }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
+        />
       </div>
     </div>
   );
@@ -66,15 +83,15 @@ export function ScoreBar({ label, value }: { label: string; value: number }) {
 
 export function SectionTitle({ kicker, title, children }: { kicker: string; title: string; children?: ReactNode }) {
   return (
-    <header className="mb-4">
-      <p className="font-mono text-xs font-bold tracking-widest text-gblue-ink uppercase">{kicker}</p>
-      <h2 className="text-2xl font-bold">{title}</h2>
-      {children && <p className="mt-1 text-sm text-muted">{children}</p>}
+    <header className="mb-5">
+      <p className="kicker">{kicker}</p>
+      <h2 className="mt-3 text-3xl font-light tracking-tight md:text-4xl">{title}</h2>
+      {children && <p className="mt-2 text-sm leading-relaxed text-muted">{children}</p>}
     </header>
   );
 }
 
 export const listItem = {
   hidden: { opacity: 0, y: 12 },
-  show: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.06, duration: 0.3 } }),
+  show: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.06, duration: 0.35 } }),
 };
