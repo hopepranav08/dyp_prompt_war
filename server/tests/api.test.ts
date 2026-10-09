@@ -21,7 +21,7 @@ class FakeAi implements AiClient {
   }
 }
 
-const place = (id: string, name: string, extra: Partial<PlaceInfo> = {}): PlaceInfo => ({ id, name, location: { lat: 18.52, lng: 73.84 }, rating: 4.5, ratingCount: 900, ...extra });
+const place = (id: string, name: string, extra: Partial<PlaceInfo> = {}): PlaceInfo => ({ id, name, location: { lat: 18.52, lng: 73.84 }, rating: 4.5, ratingCount: 900, photoName: 'places/p/photos/1', ...extra });
 
 const maps: MapsClient = {
   getPlace: async (id) => place(id, 'Vaishali'),
@@ -32,6 +32,8 @@ const maps: MapsClient = {
   ],
   weather: async () => ({ tempC: 30, condition: 'Rain', conditionType: 'RAIN', isRaining: true, rainChance: 90 }),
   airQuality: async () => ({ aqi: 40, category: 'Good' }),
+  forecastHours: async () => [{ hour: 14, tempC: 30, condition: 'Rain', rainChance: 80 }],
+  photoUri: async (name) => `https://lh3.googleusercontent.com/${name}`,
 };
 
 const REPLIES = {
@@ -51,6 +53,8 @@ const REPLIES = {
     evidenceConsistency: 0.9,
     actions: ['Avoid the underpass'],
     authority: 'PMC Disaster Cell',
+    isCivicIssue: true,
+    moderationNote: 'ok',
   },
   'route safety': { headline: 'Take route 2', recommendation: 'Safer', precautions: [] },
   'compare places': {
@@ -61,6 +65,16 @@ const REPLIES = {
     summary: 'A beats B',
   },
   "today's city briefing": { briefing: 'Calm day', alerts: [] },
+  'one-day Pune itinerary': {
+    title: 'Peshwa trail',
+    summary: 'History and misal',
+    stops: [
+      { name: 'Alpha', category: 'heritage', startTime: '10:00', durationMin: 60, costPerPerson: 25, why: 'Fort', indoor: false, tip: 'Go early' },
+      { name: 'Beta', category: 'food', startTime: '14:00', durationMin: 45, costPerPerson: 150, why: 'Misal', indoor: true, tip: 'Ask for tarri' },
+    ],
+    foodToTry: ['Misal'],
+    tips: [],
+  },
 };
 
 let ai: FakeAi;
@@ -218,5 +232,78 @@ describe('gemini helpers', () => {
       { kind: 'maps', title: 'Cafe', uri: 'u1', placeId: 'p' },
       { kind: 'web', title: 'Wiki', uri: 'u2' },
     ]);
+  });
+});
+
+describe('POST /api/plan', () => {
+  it('verifies stops, scores every leg and totals the day with RTO auto fares', async () => {
+    const res = await request(createApp(deps)).post('/api/plan').send({ prompt: 'history and misal', hours: 6, budget: 800, startHour: 10 });
+    expect(res.status).toBe(200);
+    expect(res.body.stops).toHaveLength(2);
+    expect(res.body.stops[0]).toMatchObject({ verified: true, photoUri: expect.stringContaining('googleusercontent') });
+    expect(res.body.legs[0]).toMatchObject({ fromIndex: 0, toIndex: 1, autoFare: expect.any(Number), safetyScore: expect.any(Number) });
+    expect(res.body.totals.total).toBe(res.body.totals.activities + res.body.totals.transport);
+    expect(res.body.forecast[0].rainChance).toBe(80);
+    expect(ai.calls[0]?.tools).toEqual(['maps']);
+  });
+});
+
+describe('POST /api/fare', () => {
+  it('prices the trip by the RTO tariff and flags overcharging', async () => {
+    const res = await request(createApp(deps)).post('/api/fare').send({ origin: 'Swargate', destination: 'Deccan', hour: 14, quoted: 200 });
+    expect(res.status).toBe(200);
+    // route-1 is 6 km: Rs 30 + 4.5 km x Rs 20 = Rs 120
+    expect(res.body.fare).toMatchObject({ total: 120, verdict: 'overcharging', differencePct: 67 });
+    expect(res.body.tariff.perKm).toBe(20);
+  });
+});
+
+describe('GET /api/landmarks', () => {
+  it('returns Pune icons with Google photos and Devanagari names', async () => {
+    const res = await request(createApp(deps)).get('/api/landmarks');
+    expect(res.status).toBe(200);
+    expect(res.body.landmarks.length).toBe(10);
+    expect(res.body.landmarks[0]).toMatchObject({ deva: 'शनिवारवाडा', photoUri: expect.stringContaining('googleusercontent') });
+  });
+});
+
+describe('moderation, auth and reputation', () => {
+  const verifier = { verify: async (t: string) => (t === 'good' ? { uid: 'u1', anonymous: false } : Promise.reject(new Error('bad'))) };
+
+  it('rejects spam or non-civic reports before they reach the map', async () => {
+    (REPLIES['messy citizen report'] as Record<string, unknown>).isCivicIssue = false;
+    try {
+      const res = await request(createApp(deps)).post('/api/report').send({ text: 'buy cheap phones', location: { lat: 18.5, lng: 73.85 } });
+      expect(res.status).toBe(422);
+      expect((await request(createApp(deps)).get('/api/reports')).body.reports).toHaveLength(0);
+    } finally {
+      (REPLIES['messy citizen report'] as Record<string, unknown>).isCivicIssue = true;
+    }
+  });
+
+  it('rejects an invalid token with 401 but lets guests through', async () => {
+    const app = createApp({ ...deps, auth: verifier });
+    expect((await request(app).get('/api/me').set('Authorization', 'Bearer forged')).status).toBe(401);
+    expect((await request(app).get('/api/me')).body.user).toBeNull();
+  });
+
+  it('adds a signed-in reputation signal and never exposes the reporter id', async () => {
+    const app = createApp({ ...deps, auth: verifier });
+    const res = await request(app).post('/api/report').set('Authorization', 'Bearer good').send({ text: 'flooded', location: { lat: 18.5, lng: 73.85 } });
+    expect(res.status).toBe(201);
+    expect(res.body.report.signals.map((s: { label: string }) => s.label)).toContain('Signed-in reporter (accountable identity)');
+    expect(res.body.report.reporterId).toBeUndefined();
+    const me = await request(app).get('/api/me').set('Authorization', 'Bearer good');
+    expect(me.body).toMatchObject({ user: { uid: 'u1' }, history: { total: 1 } });
+  });
+
+  it('passes the chosen language through to Gemini', async () => {
+    await request(createApp(deps)).post('/api/explore').send({ query: 'misal', lang: 'mr' });
+    expect(ai.calls[0]?.lang).toBe('mr');
+  });
+
+  it('sets a restrictive Permissions-Policy', async () => {
+    const res = await request(createApp(deps)).get('/api/health');
+    expect(res.headers['permissions-policy']).toContain('payment=()');
   });
 });

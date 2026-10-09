@@ -1,27 +1,53 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'Outfit', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Outfit', 'Mukta', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Outfit', 'Mukta', ui-sans-serif, system-ui, sans-serif;
   --font-serif: 'Instrument Serif', ui-serif, Georgia, serif;
   --font-deva: 'Yatra One', 'Outfit', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
   /* Soft-premium palette: mist backdrop, paper→cream cards, sunflower accent, charcoal panels */
-  --color-ink: #222222;
-  --color-charcoal: #2a2a2a;
+  --color-ink: #1f1f1f;
+  --color-charcoal: #262626;
   --color-paper: #f6f6f4;
   --color-cream: #f8efcb;
+  --color-surface: #ffffff;
   --color-sun: #f7cd4b;
   --color-sun-soft: #fbe9a6;
   --color-mist: #b9bfc9;
   --color-mist-deep: #a3aab6;
-  --color-muted: #5c5a54;
-  --color-ok: #2e7a4a;
-  --color-danger: #b8382a;
+  --color-muted: #57554f;
+  --color-ok: #2a7346;
+  --color-danger: #b3362a;
+  --color-primary: #262626;
+  --color-on-primary: #ffffff;
+  --color-track: #2b2b2b;
+  --color-error-bg: #fdecea;
 
   --shadow-soft: 0 1px 2px rgb(20 20 20 / 0.05), 0 10px 30px -14px rgb(20 20 20 / 0.28);
   --shadow-lift: 0 2px 4px rgb(20 20 20 / 0.06), 0 30px 60px -24px rgb(20 20 20 / 0.45);
+}
+
+/* Dark theme: same tokens, night palette. Sunflower becomes the primary action colour. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-ink: #f1efe8;
+  --color-charcoal: #0c0c0d;
+  --color-paper: #1b1b1e;
+  --color-cream: #2b2617;
+  --color-surface: #232327;
+  --color-mist: #131417;
+  --color-mist-deep: #0b0c0e;
+  --color-muted: #b9b5ab;
+  --color-ok: #5cc98a;
+  --color-danger: #ff8a75;
+  --color-primary: #f7cd4b;
+  --color-on-primary: #171717;
+  --color-track: #45454b;
+  --color-error-bg: #3a1f1b;
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px -14px rgb(0 0 0 / 0.7);
+  --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.4), 0 30px 60px -24px rgb(0 0 0 / 0.85);
 }
 
 @layer base {
@@ -29,15 +55,24 @@
     color: var(--color-ink);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
   }
   body {
     min-height: 100dvh;
+    overflow-x: clip;
     background-color: var(--color-mist);
     background-image:
       radial-gradient(1200px 600px at 10% -10%, rgb(255 255 255 / 0.45), transparent 60%),
       radial-gradient(900px 500px at 110% 110%, rgb(247 205 75 / 0.18), transparent 60%),
       linear-gradient(160deg, var(--color-mist) 0%, var(--color-mist-deep) 100%);
     background-attachment: fixed;
+    transition: background-color 300ms ease;
+  }
+  :root[data-theme='dark'] body {
+    background-image:
+      radial-gradient(1000px 500px at 0% -10%, rgb(247 205 75 / 0.08), transparent 60%),
+      radial-gradient(900px 500px at 110% 110%, rgb(247 205 75 / 0.06), transparent 60%),
+      linear-gradient(160deg, var(--color-mist) 0%, var(--color-mist-deep) 100%);
   }
   h1,
   h2,
@@ -51,7 +86,7 @@
   }
   ::selection {
     background: var(--color-sun);
-    color: var(--color-ink);
+    color: #1f1f1f;
   }
 }
 
@@ -63,10 +98,14 @@
     border-radius: 32px;
     box-shadow: var(--shadow-lift);
   }
+  :root[data-theme='dark'] .panel {
+    background: linear-gradient(180deg, #1c1c1f 0%, #1d1c1b 55%, #29251a 100%);
+    border-color: rgb(255 255 255 / 0.06);
+  }
   /* Inner tile */
   .card {
-    background: linear-gradient(180deg, #ffffff 0%, #fbfaf5 100%);
-    border: 1px solid rgb(34 34 34 / 0.06);
+    background: linear-gradient(180deg, var(--color-surface) 0%, color-mix(in srgb, var(--color-surface) 92%, var(--color-cream)) 100%);
+    border: 1px solid color-mix(in srgb, var(--color-ink) 7%, transparent);
     border-radius: 24px;
     box-shadow: var(--shadow-soft);
   }
@@ -76,17 +115,22 @@
     border-radius: 28px;
     box-shadow: var(--shadow-lift);
   }
+  :root[data-theme='dark'] .card-dark {
+    border: 1px solid rgb(255 255 255 / 0.07);
+  }
   .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
     border-radius: 999px;
-    border: 1px solid rgb(34 34 34 / 0.08);
-    background: white;
+    border: 1px solid color-mix(in srgb, var(--color-ink) 9%, transparent);
+    background: var(--color-surface);
+    color: var(--color-ink);
     box-shadow: var(--shadow-soft);
     padding: 0.7rem 1.25rem;
     font-weight: 500;
+    white-space: nowrap;
     transition:
       transform 160ms ease,
       box-shadow 160ms ease,
@@ -104,20 +148,27 @@
     opacity: 0.5;
     cursor: not-allowed;
   }
+  .btn-primary {
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+    border-color: transparent;
+  }
   .btn-icon {
     padding: 0.7rem;
     aspect-ratio: 1;
   }
   .field {
     width: 100%;
-    border: 1px solid rgb(34 34 34 / 0.12);
+    min-width: 0;
+    border: 1px solid color-mix(in srgb, var(--color-ink) 14%, transparent);
     border-radius: 18px;
-    background: white;
+    background: var(--color-surface);
+    color: var(--color-ink);
     padding: 0.75rem 1rem;
     box-shadow: inset 0 1px 2px rgb(20 20 20 / 0.04);
   }
   .field::placeholder {
-    color: #8a877f;
+    color: color-mix(in srgb, var(--color-muted) 85%, transparent);
   }
   .field:focus-visible {
     outline: 3px solid var(--color-sun);
@@ -128,12 +179,13 @@
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    border: 1px solid rgb(34 34 34 / 0.1);
+    border: 1px solid color-mix(in srgb, var(--color-ink) 11%, transparent);
     border-radius: 999px;
     padding: 0.3rem 0.75rem;
     font-size: 0.78rem;
     font-weight: 500;
-    background: white;
+    background: var(--color-surface);
+    color: var(--color-ink);
   }
   .pill-stat {
     display: inline-flex;
@@ -146,20 +198,25 @@
     white-space: nowrap;
   }
   .hatch {
-    background-image: repeating-linear-gradient(-45deg, rgb(34 34 34 / 0.16) 0 2px, transparent 2px 9px);
-    background-color: rgb(255 255 255 / 0.5);
+    background-image: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--color-ink) 16%, transparent) 0 2px, transparent 2px 9px);
+    background-color: color-mix(in srgb, var(--color-surface) 55%, transparent);
   }
   .kicker {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
     border-radius: 999px;
-    background: rgb(34 34 34 / 0.06);
+    background: color-mix(in srgb, var(--color-ink) 7%, transparent);
     padding: 0.25rem 0.7rem;
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+  }
+  /* Thin custom scrollbars inside panels */
+  .scroll-soft {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--color-ink) 25%, transparent) transparent;
   }
 }
 
@@ -169,7 +226,7 @@
     transform: translateY(0) rotate(var(--tilt, 0deg));
   }
   50% {
-    transform: translateY(-14px) rotate(var(--tilt, 0deg));
+    transform: translateY(-12px) rotate(var(--tilt, 0deg));
   }
 }
 @keyframes marquee {
@@ -177,23 +234,6 @@
     transform: translateX(-50%);
   }
 }
-.animate-float {
-  animation: float 7s ease-in-out infinite;
-}
-.animate-marquee {
-  animation: marquee 32s linear infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
 /* Hero entrance: pure CSS so content never depends on JS timing (and reduced-motion makes it instant). */
 @keyframes rise {
   from {
@@ -205,6 +245,49 @@
     transform: none;
   }
 }
+@keyframes kenburns {
+  from {
+    transform: scale(1.02);
+  }
+  to {
+    transform: scale(1.12);
+  }
+}
+.animate-float {
+  animation: float 7s ease-in-out infinite;
+}
+.animate-marquee {
+  animation: marquee 32s linear infinite;
+}
 .animate-rise {
   animation: rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.animate-kenburns {
+  animation: kenburns 18s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Hero sun: a solid sunrise in light mode, a glowing eclipse ring at night so the wordmark stays legible. */
+.sun-disc {
+  background: var(--color-sun);
+  box-shadow: 0 0 120px 40px rgb(247 205 75 / 0.45);
+}
+.wordmark {
+  color: var(--color-ink);
+}
+:root[data-theme='dark'] .sun-disc {
+  background: radial-gradient(circle, rgb(247 205 75 / 0.16) 0%, rgb(247 205 75 / 0.05) 62%, transparent 70%);
+  box-shadow:
+    0 0 0 3px rgb(247 205 75 / 0.85),
+    0 0 90px 20px rgb(247 205 75 / 0.25);
 }

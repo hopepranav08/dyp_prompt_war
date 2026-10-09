@@ -36,6 +36,7 @@ export interface ExplorePlace {
   safetyNote: string;
   verified: boolean;
   place: PlaceInfo | null;
+  photoUri?: string | null;
   area: AreaSafety | null;
 }
 
@@ -114,6 +115,7 @@ export interface CompareScores {
 
 export interface CompareItem {
   place: PlaceInfo;
+  photoUri?: string | null;
   scores: CompareScores;
   overall: number;
   evidence: { cleanliness: string; safety: string; area: AreaSafety | null };
@@ -138,4 +140,79 @@ export interface BlackSpot extends LatLng {
   name: string;
   severity: 1 | 2 | 3;
   note: string;
+}
+
+export interface PlaceInfoWithAttribution extends PlaceInfo {
+  photoAttribution?: string;
+}
+
+export interface PlanStop {
+  name: string;
+  category: string;
+  startTime: string;
+  durationMin: number;
+  costPerPerson: number;
+  why: string;
+  indoor: boolean;
+  tip: string;
+  verified: boolean;
+  place: PlaceInfoWithAttribution | null;
+  photoUri: string | null;
+  area: AreaSafety | null;
+}
+
+export interface PlanLeg {
+  fromIndex: number;
+  toIndex: number;
+  km: number;
+  minutes: number;
+  walk: boolean;
+  autoFare: number;
+  safetyScore: number;
+  factors: string[];
+  path: LatLng[];
+}
+
+export interface PlanResult {
+  title: string;
+  summary: string;
+  startHour: number;
+  stops: PlanStop[];
+  legs: PlanLeg[];
+  totals: { activities: number; transport: number; total: number; budget: number | null };
+  forecast: Array<{ hour: number; tempC: number | null; condition: string; rainChance: number }>;
+  foodToTry: string[];
+  tips: string[];
+}
+
+export type FareVerdict = 'fair' | 'slightly_high' | 'overcharging' | 'below_meter';
+
+export interface FareResult {
+  hour: number;
+  fare: {
+    distanceKm: number;
+    base: number;
+    distanceCharge: number;
+    nightCharge: number;
+    luggageCharge: number;
+    total: number;
+    isNight: boolean;
+    quoted?: number;
+    verdict?: FareVerdict;
+    differencePct?: number;
+  };
+  route: { distanceM: number; durationSec: number; description?: string; path: LatLng[] };
+}
+
+export interface Landmark {
+  id: string;
+  name: string;
+  deva: string;
+  tag: string;
+  rating?: number;
+  ratingCount?: number;
+  mapsUri?: string;
+  location?: LatLng;
+  photoUri: string | null;
+  attribution?: string;
 }

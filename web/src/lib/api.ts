@@ -1,11 +1,17 @@
-import type { BlackSpot, CompareResult, ExploreResult, LatLng, Pulse, Report, RouteResult } from './types';
+import { auth } from './auth';
+import { getLang } from './prefs';
+import type { BlackSpot, CompareResult, ExploreResult, FareResult, Landmark, LatLng, PlanResult, Pulse, Report, RouteResult } from './types';
 
 export class ApiError extends Error {}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = await auth.idToken();
   let res: Response;
   try {
-    res = await fetch(path, { ...init, headers: { 'Content-Type': 'application/json', ...init?.headers } });
+    res = await fetch(path, {
+      ...init,
+      headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }), ...init?.headers },
+    });
   } catch {
     throw new ApiError('Network error: check your connection and try again.');
   }
@@ -14,7 +20,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
-const post = <T>(path: string, data: unknown) => request<T>(path, { method: 'POST', body: JSON.stringify(data) });
+/** Every AI-backed call carries the UI language so Gemini answers in English, Hindi or Marathi. */
+const post = <T>(path: string, data: Record<string, unknown>) => request<T>(path, { method: 'POST', body: JSON.stringify({ ...data, lang: getLang() }) });
 
 export interface MediaPayload {
   mimeType: string;
@@ -23,11 +30,15 @@ export interface MediaPayload {
 
 export const api = {
   config: () => request<{ mapsKey: string; center: LatLng }>('/api/config'),
-  pulse: () => request<Pulse>('/api/pulse'),
+  pulse: () => request<Pulse>(`/api/pulse?lang=${getLang()}`),
   blackspots: () => request<{ blackspots: BlackSpot[]; sources: string[] }>('/api/blackspots'),
   reports: () => request<{ reports: Report[] }>('/api/reports'),
+  landmarks: () => request<{ landmarks: Landmark[] }>('/api/landmarks'),
+  me: () => request<{ user: { uid: string; anonymous: boolean; email?: string } | null; history: { total: number; verified: number } | null }>('/api/me'),
   explore: (query: string, mode: 'explore' | 'heritage', location?: LatLng) => post<ExploreResult>('/api/explore', { query, mode, location }),
+  plan: (prompt: string, hours: number, budget: number | undefined, startHour: number) => post<PlanResult>('/api/plan', { prompt, hours, budget, startHour }),
   route: (origin: string, destination: string, mode: string, hour?: number) => post<RouteResult>('/api/route', { origin, destination, mode, hour }),
+  fare: (origin: string, destination: string, quoted?: number, luggage = 0, hour?: number) => post<FareResult>('/api/fare', { origin, destination, quoted, luggage, hour }),
   report: (payload: { text?: string; image?: MediaPayload; audio?: MediaPayload; location: LatLng }) => post<{ report: Report }>('/api/report', payload),
   compare: (places: string[]) => post<CompareResult>('/api/compare', { places }),
 };

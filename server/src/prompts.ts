@@ -31,6 +31,7 @@ Task: convert a messy citizen report (text and/or photo and/or voice note in Eng
 - evidenceConsistency: 0-1, how strongly the attached photo/voice actually supports the claimed incident.
   1 = clearly shows it, 0.5 = ambiguous or no media, 0 = contradicts it or looks unrelated/fake.
 - actions: 2-4 concrete things nearby citizens should do now.
+- isCivicIssue: false if the input is spam, abuse, advertising, a joke, personal data about a private person, or not a real-world city issue; moderationNote explains why in one short sentence (else "ok").
 - authority: who to notify in Pune (e.g. "Pune Traffic Police (1095)", "PMC Disaster Cell (020-25506800)", "Police 112", "MSEDCL 1912").`;
 
 export const ROUTE_PROMPT = `${SHARED}
@@ -53,5 +54,14 @@ Task: using Google Search, write today's city briefing for someone moving around
 - briefing: 2 short sentences on what matters today (traffic diversions, weather alerts, festivals, events, strikes).
 - alerts: up to 3 specific, current, verifiable alerts. Use "danger" only for real threats to safety.
 - If nothing notable is found, say so honestly and return no alerts.`;
+
+export const PLAN_PROMPT = `${SHARED}
+Task: build a realistic one-day Pune itinerary using Google Maps grounding.
+- Respect the user's time window, budget (₹ per person) and preferences. Order stops so travel is efficient.
+- startTime in 24h "HH:MM" IST. Leave realistic travel gaps between stops.
+- Use the hourly forecast: when rain chance is 50% or more, schedule indoor stops (museums, cafés, malls, temples) in those hours and set indoor=true.
+- After 20:00 prefer busy, well-lit areas and avoid isolated stretches; never route people to known accident black spots for leisure.
+- costPerPerson: realistic ₹ entry/food cost for that stop (0 if free). Include at least one local food stop.
+- tip: one specific insider tip per stop (best dish, entry gate, photo spot, closing time).`;
 
 export const wrapUserInput = (text: string) => `<user_input>${text.replaceAll('<', '‹')}</user_input>`;

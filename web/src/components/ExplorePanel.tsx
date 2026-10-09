@@ -1,9 +1,10 @@
 import { BadgeCheck, Clock, ExternalLink, Landmark, Search, ShieldAlert, Sparkles, Star, Wallet } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../lib/api';
+import { usePrefs } from '../lib/prefs';
 import type { ExploreResult, LatLng } from '../lib/types';
-import { ErrorNote, listItem, ScoreBadge, SectionTitle, Spinner } from './ui';
+import { ErrorNote, listItem, PlacePhoto, ScoreBadge, SectionTitle, Spinner } from './ui';
 
 const SUGGESTIONS = {
   explore: ['Cheap misal pav near FC Road open now', 'Budget hotel near Pune station under ₹2000', 'Quiet cafés in Koregaon Park to work from'],
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export function ExplorePanel({ location, onResult }: Props) {
+  const { t } = usePrefs();
   const [mode, setMode] = useState<'explore' | 'heritage'>('explore');
   const [query, setQuery] = useState('');
   const [result, setResult] = useState<ExploreResult | null>(null);
@@ -38,6 +40,27 @@ export function ExplorePanel({ location, onResult }: Props) {
     }
   }
 
+  // Deep link from the landing gallery: /app?tab=explore&mode=heritage&q=Shaniwar%20Wada
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('q');
+    if (!q) return;
+    const m = params.get('mode') === 'heritage' ? 'heritage' : 'explore';
+    setMode(m);
+    setQuery(q);
+    setLoading(true);
+    api
+      .explore(q.slice(0, 300), m, location)
+      .then((r) => {
+        setResult(r);
+        onResult(r);
+      })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+    window.history.replaceState(null, '', '/app');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const submit = (e: FormEvent) => {
     e.preventDefault();
     void run(query);
@@ -45,11 +68,11 @@ export function ExplorePanel({ location, onResult }: Props) {
 
   return (
     <div>
-      <SectionTitle kicker="Explore · History & Culture" title="Discover Pune, grounded in Google Maps">
-        Every place is checked against Google Places and gets a live area-safety score.
+      <SectionTitle kicker={t('explore.kicker')} title={t('explore.title')}>
+        {t('explore.sub')}
       </SectionTitle>
 
-      <div className="mb-3 inline-flex rounded-full border border-ink/10 bg-white p-1" role="radiogroup" aria-label="Explore mode">
+      <div className="mb-3 inline-flex rounded-full border border-ink/10 bg-surface p-1" role="radiogroup" aria-label="Explore mode">
         {(['explore', 'heritage'] as const).map((m) => (
           <button
             key={m}
@@ -57,10 +80,10 @@ export function ExplorePanel({ location, onResult }: Props) {
             role="radio"
             aria-checked={mode === m}
             onClick={() => setMode(m)}
-            className={`flex items-center gap-1.5 rounded-2xl px-3 py-1.5 text-sm font-semibold ${mode === m ? 'bg-ink text-white' : ''}`}
+            className={`flex items-center gap-1.5 rounded-2xl px-3 py-1.5 text-sm font-semibold ${mode === m ? 'bg-primary text-on-primary' : ''}`}
           >
             {m === 'explore' ? <Sparkles className="size-4" aria-hidden /> : <Landmark className="size-4" aria-hidden />}
-            {m === 'explore' ? 'Food, stays & fun' : 'Heritage stories'}
+            {m === 'explore' ? t('explore.modeFood') : t('explore.modeHeritage')}
           </button>
         ))}
       </div>
@@ -69,10 +92,10 @@ export function ExplorePanel({ location, onResult }: Props) {
         <label htmlFor="explore-q" className="sr-only">
           What are you looking for?
         </label>
-        <input id="explore-q" className="field" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. vada pav under ₹50 near Swargate" maxLength={300} />
-        <button className="btn bg-ink text-white" disabled={loading || query.trim().length < 2}>
+        <input id="explore-q" className="field" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('explore.placeholder')} maxLength={300} />
+        <button className="btn btn-primary " disabled={loading || query.trim().length < 2}>
           <Search className="size-4" aria-hidden />
-          <span className="sr-only sm:not-sr-only">Ask</span>
+          <span className="sr-only sm:not-sr-only">{t('explore.ask')}</span>
         </button>
       </form>
 
@@ -85,7 +108,7 @@ export function ExplorePanel({ location, onResult }: Props) {
       </div>
 
       <div className="mt-5 space-y-3" aria-live="polite">
-        {loading && <Spinner label="Gemini is searching Google Maps…" />}
+        {loading && <Spinner label={t('explore.loading')} />}
         {error && <ErrorNote message={error} />}
         {result && !loading && (
           <>
@@ -99,9 +122,9 @@ export function ExplorePanel({ location, onResult }: Props) {
                 <p className="text-sm leading-relaxed">{result.heritage.story}</p>
                 {result.heritage.traditions.length > 0 && (
                   <ul className="mt-3 flex flex-wrap gap-2">
-                    {result.heritage.traditions.map((t) => (
-                      <li key={t} className="chip bg-sun">
-                        {t}
+                    {result.heritage.traditions.map((tr) => (
+                      <li key={tr} className="chip bg-sun text-[#1f1f1f]">
+                        {tr}
                       </li>
                     ))}
                   </ul>
@@ -111,17 +134,18 @@ export function ExplorePanel({ location, onResult }: Props) {
 
             <ol className="space-y-3">
               {result.places.map((p, i) => (
-                <motion.li key={`${p.name}-${i}`} custom={i} variants={listItem} initial="hidden" animate="show" className="card p-4">
-                  <div className="flex items-start gap-3">
-                    <span className="grid size-8 shrink-0 place-items-center rounded-full border border-ink/10 bg-ink font-bold text-white" aria-hidden>
+                <motion.li key={`${p.name}-${i}`} custom={i} variants={listItem} initial="hidden" animate="show" className="card overflow-hidden">
+                  <PlacePhoto src={p.photoUri} alt={p.name} attribution={(p.place as { photoAttribution?: string } | null)?.photoAttribution} className="h-44" />
+                  <div className="flex items-start gap-3 p-4">
+                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-sun font-bold text-[#1f1f1f]" aria-hidden>
                       {i + 1}
                     </span>
                     <div className="min-w-0 flex-1">
                       <h3 className="flex flex-wrap items-center gap-2 font-bold">
                         {p.name}
                         {p.verified && (
-                          <span className="chip bg-ok text-white" title="Confirmed on Google Places">
-                            <BadgeCheck className="size-3.5" aria-hidden /> Verified place
+                          <span className="chip bg-ok text-on-primary" title="Confirmed on Google Places">
+                            <BadgeCheck className="size-3.5" aria-hidden /> {t('common.verifiedPlace')}
                           </span>
                         )}
                       </h3>

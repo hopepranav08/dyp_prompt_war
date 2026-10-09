@@ -13,6 +13,8 @@ export interface TrustInput {
   /** null when live weather is unavailable */
   isRaining: boolean | null;
   nearbySimilarReports: number;
+  /** Signed-in (non-guest) reporter and their track record; absent for guests. */
+  reporter?: { signedIn: boolean; verifiedReports: number };
 }
 
 export interface TrustSignal {
@@ -64,6 +66,12 @@ export function computeTrust(input: TrustInput): TrustResult {
   if (ROAD_CATEGORIES.has(input.category)) {
     const near = BLACKSPOTS.find((s) => haversine(s, input.location) < 400);
     if (near) signals.push({ label: `Near official accident black spot: ${near.name}`, delta: 10 });
+  }
+
+  if (input.reporter?.signedIn) {
+    signals.push({ label: 'Signed-in reporter (accountable identity)', delta: 5 });
+    const track = Math.min(input.reporter.verifiedReports, 3);
+    if (track > 0) signals.push({ label: `Reporter has ${input.reporter.verifiedReports} previously verified report(s)`, delta: track * 5 });
   }
 
   const trustScore = clamp(Math.round(signals.reduce((sum, s) => sum + s.delta, 0)), 0, 100);

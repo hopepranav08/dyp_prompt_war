@@ -16,7 +16,7 @@ export function Spinner({ label }: { label: string }) {
 
 export function ErrorNote({ message }: { message: string }) {
   return (
-    <div role="alert" className="card flex items-start gap-2 bg-[#fdecea] p-4 text-sm">
+    <div role="alert" className="card flex items-start gap-2 bg-error-bg p-4 text-sm">
       <AlertTriangle className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden />
       <span>{message}</span>
     </div>
@@ -39,7 +39,7 @@ export function ScoreBadge({ score, label, size = 72, dark = false }: { score: n
         <path
           d="M 10 50 A 40 40 0 0 1 90 50"
           fill="none"
-          stroke={dark ? '#5a5a5a' : 'var(--color-charcoal)'}
+          stroke={dark ? '#5a5a5a' : 'var(--color-track)'}
           strokeWidth={11}
           strokeLinecap="round"
           strokeDasharray={`0 ${value + gap} ${ARC_LENGTH}`}
@@ -95,3 +95,24 @@ export const listItem = {
   hidden: { opacity: 0, y: 12 },
   show: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.06, duration: 0.35 } }),
 };
+
+/** Google Places photo with lazy loading, a soft fade-in, a graceful fallback and the required attribution. */
+export function PlacePhoto({ src, alt, attribution, className = '' }: { src?: string | null; alt: string; attribution?: string; className?: string }) {
+  return (
+    <figure className={`relative overflow-hidden bg-gradient-to-br from-sun-soft via-cream to-mist ${className}`}>
+      {src && (
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          className="h-full w-full object-cover opacity-0 transition-opacity duration-500"
+          onLoad={(e) => e.currentTarget.classList.remove('opacity-0')}
+          onError={(e) => e.currentTarget.remove()}
+        />
+      )}
+      {attribution && <figcaption className="absolute right-2 bottom-1.5 max-w-[80%] truncate rounded-full bg-black/45 px-2 py-0.5 text-[10px] text-white/90">📷 {attribution}</figcaption>}
+    </figure>
+  );
+}

@@ -2,6 +2,8 @@ import { Camera, Crosshair, Mic, Phone, Send, Square, Trash2 } from 'lucide-reac
 import { motion } from 'motion/react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, blobToBase64, compressImage, type MediaPayload } from '../lib/api';
+import { usePrefs } from '../lib/prefs';
+import { useSession } from './Controls';
 import { prettyCategory, STATUS_STYLE } from '../lib/format';
 import type { LatLng, Report } from '../lib/types';
 import { LiveReports } from './LiveReports';
@@ -17,6 +19,8 @@ interface Props {
 const MAX_RECORD_MS = 30_000;
 
 export function ReportPanel({ location, reports, onLocate, onCreated }: Props) {
+  const { t } = usePrefs();
+  const session = useSession();
   const [text, setText] = useState('');
   const [image, setImage] = useState<{ payload: MediaPayload; preview: string } | null>(null);
   const [audio, setAudio] = useState<{ payload: MediaPayload; url: string } | null>(null);
@@ -95,13 +99,13 @@ export function ReportPanel({ location, reports, onLocate, onCreated }: Props) {
 
   return (
     <div>
-      <SectionTitle kicker="Citizen reports · Smart city insights" title="Report it messy. We verify it.">
-        Speak in Marathi, Hindi or English, snap a photo, or type. Gemini structures the report, then a trust engine cross-checks it against live weather, nearby reports and official black spots.
+      <SectionTitle kicker={t('report.kicker')} title={t('report.title')}>
+        {t('report.sub')}
       </SectionTitle>
 
       <form onSubmit={submit} className="space-y-3">
         <label htmlFor="rep-text" className="block text-sm font-semibold">
-          What’s happening?
+          {t('report.what')}
         </label>
         <textarea
           id="rep-text"
@@ -109,25 +113,29 @@ export function ReportPanel({ location, reports, onLocate, onCreated }: Props) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           maxLength={1000}
-          placeholder="e.g. Paani bhar gaya hai near Sinhagad Road flyover, bikes are skidding"
+          placeholder={t('report.placeholder')}
         />
 
         <div className="flex flex-wrap gap-2">
-          <label className="btn cursor-pointer bg-white has-[:focus-visible]:outline-3">
-            <Camera className="size-4" aria-hidden /> Photo
+          <label className="btn cursor-pointer bg-surface has-[:focus-visible]:outline-3">
+            <Camera className="size-4" aria-hidden /> {t('report.photo')}
             <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="sr-only" onChange={(e) => void onPhoto(e.target.files?.[0])} />
           </label>
-          <button type="button" className={`btn ${recording ? 'bg-danger text-white' : 'bg-white'}`} onClick={() => void toggleRecording()} aria-pressed={recording}>
+          <button type="button" className={`btn ${recording ? 'bg-danger text-on-primary' : 'bg-surface'}`} onClick={() => void toggleRecording()} aria-pressed={recording}>
             {recording ? <Square className="size-4" aria-hidden /> : <Mic className="size-4" aria-hidden />}
-            {recording ? 'Stop recording' : 'Voice note'}
+            {recording ? t('report.stop') : t('report.voice')}
           </button>
-          <button type="button" className="btn bg-white" onClick={locate}>
-            <Crosshair className="size-4" aria-hidden /> My location
+          <button type="button" className="btn bg-surface" onClick={locate}>
+            <Crosshair className="size-4" aria-hidden /> {t('report.locate')}
           </button>
         </div>
 
         <p className="font-mono text-xs text-muted">
-          📍 {location.lat.toFixed(4)}, {location.lng.toFixed(4)} · tap the map to move the pin
+          📍 {location.lat.toFixed(4)}, {location.lng.toFixed(4)} · {t('report.pinHint')}
+        </p>
+
+        <p className="text-xs text-muted">
+          {session ? `${t('auth.as')} ${session.email ?? t('auth.guestUser')}` : `${t('auth.guestUser')} · ${t('auth.signIn')} → +trust`}
         </p>
 
         {(image || audio) && (
@@ -135,7 +143,7 @@ export function ReportPanel({ location, reports, onLocate, onCreated }: Props) {
             {image && (
               <div className="relative">
                 <img src={image.preview} alt="Attached photo preview" className="h-20 w-28 rounded-2xl border border-ink/10 object-cover" />
-                <button type="button" onClick={() => setImage(null)} className="absolute -top-2 -right-2 rounded-full border border-ink/10 bg-white p-1" aria-label="Remove photo">
+                <button type="button" onClick={() => setImage(null)} className="absolute -top-2 -right-2 rounded-full border border-ink/10 bg-surface p-1" aria-label="Remove photo">
                   <Trash2 className="size-3" aria-hidden />
                 </button>
               </div>
@@ -143,7 +151,7 @@ export function ReportPanel({ location, reports, onLocate, onCreated }: Props) {
             {audio && (
               <div className="flex items-center gap-2">
                 <audio controls src={audio.url} className="h-10" aria-label="Recorded voice note" />
-                <button type="button" onClick={() => setAudio(null)} className="rounded-full border border-ink/10 bg-white p-1" aria-label="Remove voice note">
+                <button type="button" onClick={() => setAudio(null)} className="rounded-full border border-ink/10 bg-surface p-1" aria-label="Remove voice note">
                   <Trash2 className="size-3" aria-hidden />
                 </button>
               </div>
@@ -151,13 +159,13 @@ export function ReportPanel({ location, reports, onLocate, onCreated }: Props) {
           </div>
         )}
 
-        <button className="btn w-full bg-ink text-white" disabled={!canSend}>
-          <Send className="size-4" aria-hidden /> Submit report
+        <button className="btn btn-primary w-full " disabled={!canSend}>
+          <Send className="size-4" aria-hidden /> {t('report.submit')}
         </button>
       </form>
 
       <div className="mt-5 space-y-3" aria-live="polite">
-        {loading && <Spinner label="Gemini is reading your report and cross-checking signals…" />}
+        {loading && <Spinner label={t('report.loading')} />}
         {error && <ErrorNote message={error} />}
         {report && !loading && (
           <motion.article initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="card p-4">
@@ -174,7 +182,7 @@ export function ReportPanel({ location, reports, onLocate, onCreated }: Props) {
             <p className="mt-3 text-sm">{report.summary}</p>
             {report.transcript && <p className="mt-2 border-l-4 border-sun pl-3 text-sm italic">“{report.transcript}”</p>}
 
-            <h4 className="mt-4 text-sm font-bold">Why this trust score</h4>
+            <h4 className="mt-4 text-sm font-bold">{t('report.why')}</h4>
             <ul className="mt-1 space-y-1 text-xs">
               {report.signals.map((s) => (
                 <li key={s.label} className="flex justify-between gap-2">
@@ -187,7 +195,7 @@ export function ReportPanel({ location, reports, onLocate, onCreated }: Props) {
               ))}
             </ul>
 
-            <h4 className="mt-4 text-sm font-bold">What to do now</h4>
+            <h4 className="mt-4 text-sm font-bold">{t('report.now')}</h4>
             <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">
               {report.actions.map((a) => (
                 <li key={a}>{a}</li>

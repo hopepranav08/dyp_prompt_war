@@ -2,6 +2,7 @@ import { AlertTriangle, Car, CloudRain, Construction, Flame, Lightbulb, ShieldAl
 import { motion } from 'motion/react';
 import { prettyCategory } from '../lib/format';
 import type { Report } from '../lib/types';
+import { usePrefs } from '../lib/prefs';
 import { listItem } from './ui';
 
 const ICONS: Record<string, typeof Car> = {
@@ -27,12 +28,13 @@ const timeAgo = (ms: number) => {
 
 /** Charcoal "session history" style feed of the city's live citizen reports. */
 export function LiveReports({ reports }: { reports: Report[] }) {
+  const { t } = usePrefs();
   const verified = reports.filter((r) => r.status === 'verified').length;
   return (
     <section className="card-dark p-5" aria-labelledby="live-reports-title">
       <div className="mb-4 flex items-end justify-between">
         <h3 id="live-reports-title" className="text-lg font-normal">
-          Live city reports
+          {t('report.live')}
         </h3>
         <p className="text-3xl font-light" aria-label={`${verified} of ${reports.length} verified`}>
           {verified}/{reports.length}
@@ -46,7 +48,7 @@ export function LiveReports({ reports }: { reports: Report[] }) {
             const Icon = ICONS[r.category] ?? AlertTriangle;
             return (
               <motion.li key={r.id} custom={i} variants={listItem} initial="hidden" animate="show" className="flex items-center gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-full bg-white text-ink" aria-hidden>
+                <span className="grid size-10 shrink-0 place-items-center rounded-full bg-white text-[#1f1f1f]" aria-hidden>
                   <Icon className="size-4" />
                 </span>
                 <div className="min-w-0 flex-1">

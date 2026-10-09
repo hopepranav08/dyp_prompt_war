@@ -40,6 +40,7 @@ export function routeRouter(deps: Deps) {
         parts: [{ text: JSON.stringify({ hourIST: hour, weather: weather?.condition ?? 'unknown', mode: input.mode, routes: summary }) }],
         schema: RouteAi,
         temperature: 0.3,
+        lang: input.lang,
       })
       .then((r) => r.data)
       .catch(() => null);

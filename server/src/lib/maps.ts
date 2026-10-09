@@ -1,7 +1,11 @@
 import { decodePolyline, type LatLng } from './geo.js';
+import { isTransientStatus, withRetry } from './retry.js';
 import type { RouteCandidate } from '../services/risk.js';
 
 export type TravelMode = 'DRIVE' | 'TWO_WHEELER' | 'WALK';
+
+/** A route endpoint: free text ("FC Road, Pune"), a Google place ID, or coordinates. */
+export type Endpoint = string | { placeId: string } | LatLng;
 
 export interface PlaceInfo {
   id: string;
@@ -14,6 +18,9 @@ export interface PlaceInfo {
   mapsUri?: string;
   accessibility?: Record<string, boolean>;
   reviews?: string[];
+  /** Resource name of the first photo (places/…/photos/…); resolve with photoUri(). */
+  photoName?: string;
+  photoAttribution?: string;
 }
 
 export interface Weather {
@@ -23,6 +30,13 @@ export interface Weather {
   isRaining: boolean;
   rainChance: number | null;
   iconUri?: string;
+}
+
+export interface HourForecast {
+  hour: number;
+  tempC: number | null;
+  condition: string;
+  rainChance: number;
 }
 
 export interface AirQuality {
@@ -35,14 +49,23 @@ export interface AirQuality {
 export interface MapsClient {
   getPlace(placeId: string, withReviews?: boolean): Promise<PlaceInfo | null>;
   searchPlace(query: string, bias: LatLng, withReviews?: boolean): Promise<PlaceInfo | null>;
-  computeRoutes(origin: string, destination: string, mode: TravelMode): Promise<RouteCandidate[]>;
+  computeRoutes(origin: Endpoint, destination: Endpoint, mode: TravelMode, alternatives?: boolean): Promise<RouteCandidate[]>;
   weather(at: LatLng): Promise<Weather>;
+  forecastHours(at: LatLng, hours: number): Promise<HourForecast[]>;
   airQuality(at: LatLng): Promise<AirQuality>;
+  photoUri(photoName: string, maxWidthPx: number): Promise<string | null>;
 }
 
-export class MapsError extends Error {}
+export class MapsError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number,
+  ) {
+    super(message);
+  }
+}
 
-const BASE_FIELDS = ['id', 'displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'priceLevel', 'googleMapsUri', 'accessibilityOptions'];
+const BASE_FIELDS = ['id', 'displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'priceLevel', 'googleMapsUri', 'accessibilityOptions', 'photos'];
 const RAIN_TYPES = /RAIN|SHOWER|THUNDER|DRIZZLE/;
 
 interface RawPlace {
@@ -56,24 +79,34 @@ interface RawPlace {
   googleMapsUri?: string;
   accessibilityOptions?: Record<string, boolean>;
   reviews?: Array<{ text?: { text?: string } }>;
+  photos?: Array<{ name: string; authorAttributions?: Array<{ displayName?: string }> }>;
 }
+
+const toWaypoint = (e: Endpoint) =>
+  typeof e === 'string' ? { address: e } : 'placeId' in e ? { placeId: e.placeId } : { location: { latLng: { latitude: e.lat, longitude: e.lng } } };
 
 export class GoogleMapsClient implements MapsClient {
   constructor(private readonly key: string) {}
 
-  private async call<T>(url: string, init: RequestInit & { fieldMask?: string } = {}): Promise<T> {
+  /** Every Maps call gets a 10 s timeout and up to two retries on 429/5xx/network errors. */
+  private call<T>(url: string, init: RequestInit & { fieldMask?: string } = {}): Promise<T> {
     const { fieldMask, ...rest } = init;
-    const res = await fetch(url, {
-      ...rest,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': this.key,
-        ...(fieldMask && { 'X-Goog-FieldMask': fieldMask }),
+    return withRetry(
+      async () => {
+        const res = await fetch(url, {
+          ...rest,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': this.key,
+            ...(fieldMask && { 'X-Goog-FieldMask': fieldMask }),
+          },
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (!res.ok) throw new MapsError(`${new URL(url).hostname} responded ${res.status}`, res.status);
+        return (await res.json()) as T;
       },
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!res.ok) throw new MapsError(`${new URL(url).hostname} responded ${res.status}`);
-    return (await res.json()) as T;
+      { retries: 2, baseMs: 250, isRetryable: (e) => !(e instanceof MapsError) || isTransientStatus(e.status) },
+    );
   }
 
   async getPlace(placeId: string, withReviews = false): Promise<PlaceInfo | null> {
@@ -101,13 +134,13 @@ export class GoogleMapsClient implements MapsClient {
     return first ? toPlace(first) : null;
   }
 
-  async computeRoutes(origin: string, destination: string, mode: TravelMode): Promise<RouteCandidate[]> {
+  async computeRoutes(origin: Endpoint, destination: Endpoint, mode: TravelMode, alternatives = true): Promise<RouteCandidate[]> {
     const body = {
-      origin: { address: origin },
-      destination: { address: destination },
+      origin: toWaypoint(origin),
+      destination: toWaypoint(destination),
       travelMode: mode,
       ...(mode !== 'WALK' && { routingPreference: 'TRAFFIC_AWARE' }),
-      computeAlternativeRoutes: true,
+      computeAlternativeRoutes: alternatives,
       languageCode: 'en-IN',
       regionCode: 'IN',
       units: 'METRIC',
@@ -143,6 +176,24 @@ export class GoogleMapsClient implements MapsClient {
     };
   }
 
+  async forecastHours(at: LatLng, hours: number): Promise<HourForecast[]> {
+    const url = `https://weather.googleapis.com/v1/forecast/hours:lookup?location.latitude=${at.lat}&location.longitude=${at.lng}&hours=${hours}`;
+    const raw = await this.call<{
+      forecastHours?: Array<{
+        displayDateTime?: { hours?: number };
+        temperature?: { degrees?: number };
+        weatherCondition?: { description?: { text?: string } };
+        precipitation?: { probability?: { percent?: number } };
+      }>;
+    }>(url);
+    return (raw.forecastHours ?? []).map((h) => ({
+      hour: h.displayDateTime?.hours ?? 0,
+      tempC: h.temperature?.degrees ?? null,
+      condition: h.weatherCondition?.description?.text ?? '',
+      rainChance: h.precipitation?.probability?.percent ?? 0,
+    }));
+  }
+
   async airQuality(at: LatLng): Promise<AirQuality> {
     const raw = await this.call<{ indexes?: Array<{ aqi?: number; category?: string; color?: { red?: number; green?: number; blue?: number } }> }>(
       'https://airquality.googleapis.com/v1/currentConditions:lookup',
@@ -156,9 +207,17 @@ export class GoogleMapsClient implements MapsClient {
       color: c ? `rgb(${Math.round((c.red ?? 0) * 255)}, ${Math.round((c.green ?? 0) * 255)}, ${Math.round((c.blue ?? 0) * 255)})` : undefined,
     };
   }
+
+  /** Resolves a Place Photo to a short-lived googleusercontent URL, so the API key never reaches the browser. */
+  async photoUri(photoName: string, maxWidthPx: number): Promise<string | null> {
+    if (!/^places\/[\w-]+\/photos\/[\w-]+$/.test(photoName)) return null;
+    const raw = await this.call<{ photoUri?: string }>(`https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=${maxWidthPx}&skipHttpRedirect=true`);
+    return raw.photoUri ?? null;
+  }
 }
 
 function toPlace(raw: RawPlace): PlaceInfo {
+  const photo = raw.photos?.[0];
   return {
     id: raw.id,
     name: raw.displayName?.text ?? 'Unknown place',
@@ -170,5 +229,7 @@ function toPlace(raw: RawPlace): PlaceInfo {
     mapsUri: raw.googleMapsUri,
     accessibility: raw.accessibilityOptions,
     reviews: raw.reviews?.map((r) => r.text?.text ?? '').filter(Boolean).slice(0, 5),
+    photoName: photo?.name,
+    photoAttribution: photo?.authorAttributions?.map((a) => a.displayName).filter(Boolean).join(', ') || undefined,
   };
 }

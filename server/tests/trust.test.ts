@@ -47,6 +47,12 @@ describe('trust engine', () => {
     expect(r.trustScore).toBe(30);
   });
 
+  it('rewards signed-in reporters with a capped track record', () => {
+    const base = computeTrust(input()).trustScore;
+    expect(computeTrust(input({ reporter: { signedIn: true, verifiedReports: 0 } })).trustScore).toBe(base + 5);
+    expect(computeTrust(input({ reporter: { signedIn: true, verifiedReports: 10 } })).trustScore).toBe(base + 5 + 15);
+  });
+
   it('clamps scores to 0–100', () => {
     const r = computeTrust(input({ hasPhoto: true, hasVoice: true, evidenceConsistency: 1, isRaining: true, nearbySimilarReports: 4 }));
     expect(r.trustScore).toBe(100);

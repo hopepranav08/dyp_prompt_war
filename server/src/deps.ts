@@ -1,3 +1,4 @@
+import type { TokenVerifier } from './lib/auth.js';
 import type { AiClient } from './lib/gemini.js';
 import type { LatLng } from './lib/geo.js';
 import type { MapsClient } from './lib/maps.js';
@@ -8,6 +9,8 @@ export interface Deps {
   maps: MapsClient;
   reports: ReportStore;
   browserMapsKey: string;
+  /** Identity Platform token verifier; undefined disables sign-in features. */
+  auth?: TokenVerifier;
   now: () => Date;
 }
 

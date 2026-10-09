@@ -2,6 +2,7 @@ import { APIProvider, InfoWindow, Map, useMap, type MapMouseEvent } from '@vis.g
 import { MapPinned, Minus, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { usePrefs } from '../lib/prefs';
 import type { BlackSpot, ExplorePlace, LatLng, Report, ScoredRoute } from '../lib/types';
 
 export interface MapLayers {
@@ -33,6 +34,22 @@ const MAP_STYLE: google.maps.MapTypeStyle[] = [
   { featureType: 'transit', stylers: [{ visibility: 'off' }] },
   { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#c3c8d0' }] },
   { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#c9c8c2' }] },
+];
+
+/** Night basemap for dark mode: charcoal land, muted water, soft labels. */
+const MAP_STYLE_DARK: google.maps.MapTypeStyle[] = [
+  { elementType: 'geometry', stylers: [{ color: '#1d1d20' }] },
+  { elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#9a978f' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#151517' }] },
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ visibility: 'on' }, { color: '#222823' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2c2c31' }] },
+  { featureType: 'road.highway', elementType: 'geometry.fill', stylers: [{ color: '#3a3832' }] },
+  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#2a2925' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#10161d' }] },
+  { featureType: 'administrative', elementType: 'geometry.stroke', stylers: [{ color: '#33332f' }] },
 ];
 
 const STATUS_COLOR = { verified: 'var(--color-ok)', corroborated: 'var(--color-sun)', unverified: '#ffffff' } as const;
@@ -76,7 +93,7 @@ function RouteLines({ routes, selectedId }: { routes: ScoredRoute[]; selectedId?
   useEffect(() => {
     if (!map) return;
     const lines = routes.flatMap((r) => {
-      const selected = r.id === selectedId;
+      const selected = selectedId === 'all' || r.id === selectedId;
       return [
         new google.maps.Polyline({ map, path: r.path, strokeColor: '#222222', strokeWeight: selected ? 11 : 6, strokeOpacity: selected ? 1 : 0.25, zIndex: selected ? 9 : 1 }),
         new google.maps.Polyline({ map, path: r.path, strokeColor: selected ? '#f7cd4b' : '#9b9a95', strokeWeight: selected ? 5 : 3, zIndex: selected ? 10 : 2 }),
@@ -121,9 +138,11 @@ function ZoomControls() {
 }
 
 export function MapView({ apiKey, center, blackspots, places, routes, selectedRouteId, reports, picked, onPick }: Props) {
+  const { theme } = usePrefs();
   const [open, setOpen] = useState<string | null>(null);
 
   const focusPoints = useMemo(() => {
+    if (selectedRouteId === 'all' && routes.length > 0) return routes.flatMap((r) => r.path.filter((_, i) => i % 5 === 0));
     const selected = routes.find((r) => r.id === selectedRouteId) ?? routes[0];
     if (selected) return selected.path.filter((_, i) => i % 5 === 0);
     return places.flatMap((p) => (p.place?.location ? [p.place.location] : []));
@@ -148,14 +167,15 @@ export function MapView({ apiKey, center, blackspots, places, routes, selectedRo
   return (
     <APIProvider apiKey={apiKey} region="IN" language="en">
       <div className="panel relative h-full min-h-72 overflow-hidden p-2" role="region" aria-label="Map of Pune with places, routes, accident black spots and citizen reports">
-        <div className="absolute top-5 left-5 z-10 rounded-2xl bg-white/85 px-4 py-2 shadow-soft backdrop-blur">
+        <div className="absolute top-5 left-5 z-10 rounded-2xl bg-surface/85 px-4 py-2 shadow-soft backdrop-blur" aria-hidden>
           <p className="text-2xl font-light">Map session</p>
           <p className="text-xs text-muted">{blackspots.length} black spots · {reports.length} live reports</p>
         </div>
         <Map
           defaultCenter={center}
           defaultZoom={12}
-          styles={MAP_STYLE}
+          key={theme}
+          styles={theme === 'dark' ? MAP_STYLE_DARK : MAP_STYLE}
           gestureHandling="greedy"
           disableDefaultUI
           clickableIcons={false}

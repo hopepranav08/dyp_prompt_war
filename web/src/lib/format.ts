@@ -9,7 +9,7 @@ export function scoreTone(score: number): { label: string; bg: string; text: str
 }
 
 export const STATUS_STYLE = {
-  verified: { label: 'Verified', className: 'bg-ok text-white' },
+  verified: { label: 'Verified', className: 'bg-ok text-on-primary' },
   corroborated: { label: 'Corroborated', className: 'bg-sun text-ink' },
   unverified: { label: 'Unverified', className: 'bg-white text-ink' },
 } as const;

@@ -1,6 +1,8 @@
 import { GoogleGenAI, type Part, type Tool } from '@google/genai';
 import { z } from 'zod';
+import { languageInstruction, type Lang } from '../lang.js';
 import type { LatLng } from './geo.js';
+import { isTransientStatus, withRetry, withTimeout } from './retry.js';
 
 export type GroundingTool = 'maps' | 'search';
 
@@ -18,6 +20,7 @@ export interface JsonRequest<T> {
   tools?: GroundingTool[];
   latLng?: LatLng;
   temperature?: number;
+  lang?: Lang;
 }
 
 export interface JsonResponse<T> {
@@ -31,6 +34,14 @@ export interface AiClient {
 }
 
 export class AiError extends Error {}
+
+const GEMINI_TIMEOUT_MS = 30_000;
+
+/** Vertex errors carry an HTTP status; rate limits and 5xx are worth a retry, bad requests are not. */
+const isRetryableAiError = (err: unknown) => {
+  const status = (err as { status?: number })?.status;
+  return status === undefined ? !(err instanceof AiError) : isTransientStatus(status);
+};
 
 /**
  * Gemini on Vertex AI. Auth is Application Default Credentials (the Cloud Run service account),
@@ -52,24 +63,38 @@ export class VertexGemini implements AiClient {
     if (req.tools?.includes('maps')) tools.push({ googleMaps: {} });
     if (req.tools?.includes('search')) tools.push({ googleSearch: {} });
 
-    const response = await this.ai.models.generateContent({
-      model: this.model,
-      contents: [{ role: 'user', parts: req.parts }],
-      config: {
-        systemInstruction: req.system,
-        temperature: req.temperature ?? 0.4,
-        responseMimeType: 'application/json',
-        responseJsonSchema: z.toJSONSchema(req.schema, { target: 'draft-2020-12' }),
-        ...(tools.length > 0 && { tools }),
-        ...(req.latLng && {
-          toolConfig: { retrievalConfig: { latLng: { latitude: req.latLng.lat, longitude: req.latLng.lng }, languageCode: 'en_IN' } },
-        }),
-      },
-    });
+    const call = () =>
+      this.ai.models.generateContent({
+        model: this.model,
+        contents: [{ role: 'user', parts: req.parts }],
+        config: {
+          systemInstruction: req.system + languageInstruction(req.lang),
+          temperature: req.temperature ?? 0.4,
+          responseMimeType: 'application/json',
+          responseJsonSchema: z.toJSONSchema(req.schema, { target: 'draft-2020-12' }),
+          ...(tools.length > 0 && { tools }),
+          ...(req.latLng && {
+            toolConfig: { retrievalConfig: { latLng: { latitude: req.latLng.lat, longitude: req.latLng.lng }, languageCode: 'en_IN' } },
+          }),
+        },
+      });
+
+    let response: Awaited<ReturnType<typeof call>>;
+    try {
+      response = await withRetry(() => withTimeout(call(), GEMINI_TIMEOUT_MS, 'Gemini timed out'), { retries: 2, baseMs: 400, isRetryable: isRetryableAiError });
+    } catch (err) {
+      throw new AiError(`Gemini call failed: ${(err as Error).message}`);
+    }
 
     const text = response.text;
     if (!text) throw new AiError('Gemini returned an empty response');
-    const parsed = req.schema.safeParse(JSON.parse(extractJson(text)));
+    let json: unknown;
+    try {
+      json = JSON.parse(extractJson(text));
+    } catch {
+      throw new AiError('Gemini returned malformed JSON');
+    }
+    const parsed = req.schema.safeParse(json);
     if (!parsed.success) throw new AiError(`Gemini response failed validation: ${parsed.error.message}`);
 
     return { data: parsed.data, sources: extractSources(response.candidates?.[0]?.groundingMetadata) };

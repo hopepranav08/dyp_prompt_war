@@ -2,6 +2,7 @@ import { ArrowRightLeft, Bike, Car, Footprints, Moon, Navigation, ShieldCheck, S
 import { motion } from 'motion/react';
 import { useState, type FormEvent } from 'react';
 import { api } from '../lib/api';
+import { usePrefs } from '../lib/prefs';
 import { formatHour, km, minutes } from '../lib/format';
 import type { RouteResult, RouteTag } from '../lib/types';
 import { ErrorNote, listItem, ScoreBadge, SectionTitle, Spinner } from './ui';
@@ -13,8 +14,8 @@ const MODES = [
 ] as const;
 
 const TAG_STYLE: Record<RouteTag, { label: string; className: string; Icon: typeof Zap }> = {
-  safest: { label: 'Safest', className: 'bg-ok text-white', Icon: ShieldCheck },
-  fastest: { label: 'Fastest', className: 'bg-ink text-white', Icon: Zap },
+  safest: { label: 'Safest', className: 'bg-ok text-on-primary', Icon: ShieldCheck },
+  fastest: { label: 'Fastest', className: 'bg-primary text-on-primary', Icon: Zap },
   balanced: { label: 'Balanced', className: 'bg-sun text-ink', Icon: ArrowRightLeft },
 };
 
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export function RoutePanel({ selectedId, onResult, onSelect }: Props) {
+  const { t } = usePrefs();
   const [origin, setOrigin] = useState('Swargate, Pune');
   const [destination, setDestination] = useState('Warje, Pune');
   const [mode, setMode] = useState<string>('TWO_WHEELER');
@@ -52,28 +54,28 @@ export function RoutePanel({ selectedId, onResult, onSelect }: Props) {
 
   return (
     <div>
-      <SectionTitle kicker="Safety & Security" title="Safer routes, explained">
-        Every alternative route is scored against official Pune accident black spots, live verified reports, time of day and live weather.
+      <SectionTitle kicker={t('route.kicker')} title={t('route.title')}>
+        {t('route.sub')}
       </SectionTitle>
 
       <form onSubmit={submit} className="space-y-3">
         <div>
           <label htmlFor="r-from" className="mb-1 block text-sm font-semibold">
-            From
+            {t('route.from')}
           </label>
           <input id="r-from" className="field" value={origin} onChange={(e) => setOrigin(e.target.value)} required minLength={2} maxLength={200} />
         </div>
         <div>
           <label htmlFor="r-to" className="mb-1 block text-sm font-semibold">
-            To
+            {t('route.to')}
           </label>
           <input id="r-to" className="field" value={destination} onChange={(e) => setDestination(e.target.value)} required minLength={2} maxLength={200} />
         </div>
 
         <fieldset className="flex flex-wrap gap-2">
-          <legend className="mb-1 text-sm font-semibold">Travel by</legend>
+          <legend className="mb-1 text-sm font-semibold">{t('route.by')}</legend>
           {MODES.map(({ id, label, Icon }) => (
-            <label key={id} className={`chip cursor-pointer px-3 py-1.5 has-[:focus-visible]:outline-3 ${mode === id ? 'bg-ink text-white' : ''}`}>
+            <label key={id} className={`chip cursor-pointer px-3 py-1.5 has-[:focus-visible]:outline-3 ${mode === id ? 'bg-primary text-on-primary' : ''}`}>
               <input type="radio" name="mode" value={id} checked={mode === id} onChange={() => setMode(id)} className="sr-only" />
               <Icon className="size-4" aria-hidden /> {label}
             </label>
@@ -81,27 +83,27 @@ export function RoutePanel({ selectedId, onResult, onSelect }: Props) {
         </fieldset>
 
         <fieldset className="flex flex-wrap gap-2">
-          <legend className="mb-1 text-sm font-semibold">When</legend>
+          <legend className="mb-1 text-sm font-semibold">{t('route.when')}</legend>
           {(
             [
-              ['now', 'Leaving now', Sun],
-              ['night', 'Tonight, 10 PM', Moon],
+              ['now', t('route.now'), Sun],
+              ['night', t('route.night'), Moon],
             ] as const
           ).map(([id, label, Icon]) => (
-            <label key={id} className={`chip cursor-pointer px-3 py-1.5 has-[:focus-visible]:outline-3 ${when === id ? 'bg-ink text-white' : ''}`}>
+            <label key={id} className={`chip cursor-pointer px-3 py-1.5 has-[:focus-visible]:outline-3 ${when === id ? 'bg-primary text-on-primary' : ''}`}>
               <input type="radio" name="when" value={id} checked={when === id} onChange={() => setWhen(id)} className="sr-only" />
               <Icon className="size-4" aria-hidden /> {label}
             </label>
           ))}
         </fieldset>
 
-        <button className="btn w-full bg-ink text-white" disabled={loading}>
-          <Navigation className="size-4" aria-hidden /> Find the safest way
+        <button className="btn btn-primary w-full " disabled={loading}>
+          <Navigation className="size-4" aria-hidden /> {t('route.go')}
         </button>
       </form>
 
       <div className="mt-5 space-y-3" aria-live="polite">
-        {loading && <Spinner label="Scoring routes against black spots, reports and weather…" />}
+        {loading && <Spinner label={t('route.loading')} />}
         {error && <ErrorNote message={error} />}
         {result && !loading && (
           <>

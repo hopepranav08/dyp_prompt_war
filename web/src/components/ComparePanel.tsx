@@ -3,8 +3,9 @@ import { motion } from 'motion/react';
 import { useState, type FormEvent } from 'react';
 import { PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Legend } from 'recharts';
 import { api } from '../lib/api';
+import { usePrefs } from '../lib/prefs';
 import type { CompareResult, CompareScores } from '../lib/types';
-import { ErrorNote, listItem, ScoreBar, SectionTitle, Spinner } from './ui';
+import { ErrorNote, listItem, PlacePhoto, ScoreBar, SectionTitle, Spinner } from './ui';
 
 const AXES: Array<[keyof CompareScores, string]> = [
   ['safety', 'Safety'],
@@ -16,6 +17,7 @@ const AXES: Array<[keyof CompareScores, string]> = [
 const SERIES = ['#1a5fd0', '#b3261e', '#1b7a35', '#c88a00'];
 
 export function ComparePanel() {
+  const { t } = usePrefs();
   const [names, setNames] = useState(['Shaniwar Wada', 'Aga Khan Palace']);
   const [result, setResult] = useState<CompareResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -42,8 +44,8 @@ export function ComparePanel() {
 
   return (
     <div>
-      <SectionTitle kicker="Best vs worst" title="Compare places honestly">
-        Rating, affordability and accessibility come straight from Google Places. Cleanliness and safety come from Gemini reading real reviews (with quotes) plus official black-spot data.
+      <SectionTitle kicker={t('compare.kicker')} title={t('compare.title')}>
+        {t('compare.sub')}
       </SectionTitle>
 
       <form onSubmit={submit} className="space-y-2">
@@ -54,7 +56,7 @@ export function ComparePanel() {
             </label>
             <input id={`cmp-${i}`} className="field" value={n} onChange={(e) => update(i, e.target.value)} maxLength={120} placeholder={`Place ${i + 1}`} />
             {names.length > 2 && (
-              <button type="button" className="btn bg-white px-3" onClick={() => setNames((x) => x.filter((_, j) => j !== i))} aria-label={`Remove place ${i + 1}`}>
+              <button type="button" className="btn bg-surface px-3" onClick={() => setNames((x) => x.filter((_, j) => j !== i))} aria-label={`Remove place ${i + 1}`}>
                 <X className="size-4" aria-hidden />
               </button>
             )}
@@ -62,18 +64,18 @@ export function ComparePanel() {
         ))}
         <div className="flex gap-2">
           {names.length < 4 && (
-            <button type="button" className="btn bg-white" onClick={() => setNames((x) => [...x, ''])}>
-              <Plus className="size-4" aria-hidden /> Add place
+            <button type="button" className="btn bg-surface" onClick={() => setNames((x) => [...x, ''])}>
+              <Plus className="size-4" aria-hidden /> {t('compare.add')}
             </button>
           )}
-          <button className="btn flex-1 bg-ink text-white" disabled={loading}>
-            <Scale className="size-4" aria-hidden /> Compare
+          <button className="btn btn-primary flex-1 " disabled={loading}>
+            <Scale className="size-4" aria-hidden /> {t('compare.go')}
           </button>
         </div>
       </form>
 
       <div className="mt-5 space-y-3" aria-live="polite">
-        {loading && <Spinner label="Reading Google reviews and scoring each place…" />}
+        {loading && <Spinner label={t('compare.loading')} />}
         {error && <ErrorNote message={error} />}
         {result && !loading && (
           <>
@@ -103,15 +105,17 @@ export function ComparePanel() {
                   const best = r.place.id === result.bestId;
                   const worst = r.place.id === result.worstId && !best;
                   return (
-                    <motion.li key={r.place.id} custom={i} variants={listItem} initial="hidden" animate="show" className={`card p-4 ${best ? 'ring-2 ring-sun' : ''}`}>
+                    <motion.li key={r.place.id} custom={i} variants={listItem} initial="hidden" animate="show" className={`card overflow-hidden ${best ? 'ring-2 ring-sun' : ''}`}>
+                      <PlacePhoto src={r.photoUri} alt={r.place.name} className="h-36" />
+                      <div className="p-4">
                       <div className="mb-2 flex flex-wrap items-center gap-2">
                         {best && (
-                          <span className="chip bg-ok text-white">
+                          <span className="chip bg-ok text-on-primary">
                             <Crown className="size-3.5" aria-hidden /> Best
                           </span>
                         )}
                         {worst && (
-                          <span className="chip bg-danger text-white">
+                          <span className="chip bg-danger text-on-primary">
                             <ThumbsDown className="size-3.5" aria-hidden /> Worst
                           </span>
                         )}
@@ -137,6 +141,7 @@ export function ComparePanel() {
                           </dd>
                         </div>
                       </dl>
+                      </div>
                     </motion.li>
                   );
                 })}

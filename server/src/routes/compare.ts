@@ -4,6 +4,7 @@ import type { PlaceInfo } from '../lib/maps.js';
 import { COMPARE_PROMPT } from '../prompts.js';
 import { CompareAi, CompareRequest } from '../schemas.js';
 import { areaSafety } from './explore.js';
+import { photoFor } from './photos.js';
 
 const PRICE_SCORE: Record<string, number> = {
   PRICE_LEVEL_FREE: 100,
@@ -48,8 +49,8 @@ export function compareRouter(deps: Deps) {
       rating: p.rating ?? null,
       reviews: (p.reviews ?? []).map((r) => r.slice(0, 400)),
     }));
-    const { data: ai } = await deps.ai.generateJson({ system: COMPARE_PROMPT, parts: [{ text: JSON.stringify(evidence) }], schema: CompareAi, temperature: 0.2 });
-    const reports = await deps.reports.recent(deps.now().getTime() - 2 * DAY_MS);
+    const { data: ai } = await deps.ai.generateJson({ system: COMPARE_PROMPT, parts: [{ text: JSON.stringify(evidence) }], schema: CompareAi, temperature: 0.2, lang: input.lang });
+    const [reports, photos] = await Promise.all([deps.reports.recent(deps.now().getTime() - 2 * DAY_MS), Promise.all(places.map((p) => photoFor(deps.maps, p)))]);
 
     const results = places.map((p, index) => {
       const a = ai.places.find((x) => x.index === index);
@@ -65,6 +66,7 @@ export function compareRouter(deps: Deps) {
       const overall = Math.round(Object.values(scores).reduce((s, v) => s + v, 0) / 5);
       return {
         place: { id: p.id, name: p.name, address: p.address, location: p.location, rating: p.rating, ratingCount: p.ratingCount, mapsUri: p.mapsUri },
+        photoUri: photos[index] ?? null,
         scores,
         overall,
         evidence: { cleanliness: a?.cleanlinessEvidence ?? '', safety: a?.safetyEvidence ?? '', area },
