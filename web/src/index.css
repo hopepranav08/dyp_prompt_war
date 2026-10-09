@@ -291,3 +291,101 @@
     0 0 0 3px rgb(247 205 75 / 0.85),
     0 0 90px 20px rgb(247 205 75 / 0.25);
 }
+
+/* ---------- Motion graphics ---------- */
+@keyframes spin-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(40px, 30px) scale(1.12);
+  }
+}
+@keyframes shine-sweep {
+  0% {
+    transform: translateX(-120%) skewX(-20deg);
+  }
+  60%,
+  100% {
+    transform: translateX(260%) skewX(-20deg);
+  }
+}
+@keyframes border-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgb(247 205 75 / 0.25), 0 0 18px -6px rgb(247 205 75 / 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 1px rgb(247 205 75 / 0.7), 0 0 26px -4px rgb(247 205 75 / 0.55);
+  }
+}
+/* The orbit turns slowly; the 🛺 rider counter-rotates so it always stays upright. */
+.orbit {
+  animation: spin-orbit 38s linear infinite;
+}
+.orbit-rider {
+  animation: spin-orbit 38s linear infinite reverse;
+}
+.aurora {
+  animation: drift 16s ease-in-out infinite;
+}
+.aurora-delay {
+  animation-delay: -8s;
+  animation-duration: 20s;
+}
+.shine {
+  position: relative;
+  overflow: hidden;
+}
+.shine::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.45), transparent);
+  animation: shine-sweep 3.6s ease-in-out 1.6s infinite;
+  pointer-events: none;
+}
+.shine-border {
+  animation: border-glow 3s ease-in-out infinite;
+}
+/* 3D tilt + glare driven by --rx/--ry/--mx/--my (set on pointer move) */
+.tilt {
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 0.25s ease-out;
+  will-change: transform;
+}
+.tilt-glare {
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgb(255 255 255 / 0.22), transparent 45%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.tilt:hover .tilt-glare {
+  opacity: 1;
+}
+/* Aurora glows are plain radial gradients (no blur filter), so they cost almost nothing to animate. */
+.aurora {
+  will-change: transform;
+}
+.aurora-sun {
+  background: radial-gradient(circle, rgb(247 205 75 / 0.32) 0%, rgb(247 205 75 / 0.1) 38%, transparent 68%);
+}
+.aurora-sky {
+  background: radial-gradient(circle, rgb(157 180 255 / 0.28) 0%, rgb(157 180 255 / 0.08) 40%, transparent 68%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise,
+  .orbit,
+  .orbit-rider,
+  .aurora,
+  .shine::after,
+  .shine-border {
+    animation: none !important;
+  }
+}

@@ -1,6 +1,6 @@
 import { ArrowRight, ArrowUpRight, BadgeCheck, CalendarHeart, Camera, Check, CloudRain, Compass, IndianRupee, Landmark as LandmarkIcon, Megaphone, Minus, Radio, Route, Scale, ShieldCheck, Star, Users } from 'lucide-react';
-import { motion } from 'motion/react';
-import { useEffect, useState } from 'react';
+import { animate, motion, useInView, useScroll, useSpring } from 'motion/react';
+import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { api } from '../lib/api';
 import { usePrefs } from '../lib/prefs';
 import type { Landmark } from '../lib/types';
@@ -49,6 +49,58 @@ const LADDER = [
 
 const SIGNALS = ['+15 photo evidence', '±20 Gemini evidence check', '+15 live rain confirms flooding', '−10 weather contradicts', '+12 per nearby report', '+10 near official black spot', '+5–20 reporter reputation'];
 
+const prefersReducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/** Subtle 3D tilt + moving glare that follows the pointer (skipped for reduced-motion users). */
+function tilt(e: PointerEvent<HTMLElement>) {
+  if (e.pointerType !== 'mouse' || prefersReducedMotion()) return;
+  const el = e.currentTarget;
+  const r = el.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width;
+  const y = (e.clientY - r.top) / r.height;
+  el.style.setProperty('--rx', `${(0.5 - y) * 8}deg`);
+  el.style.setProperty('--ry', `${(x - 0.5) * 10}deg`);
+  el.style.setProperty('--mx', `${x * 100}%`);
+  el.style.setProperty('--my', `${y * 100}%`);
+}
+function untilt(e: PointerEvent<HTMLElement>) {
+  e.currentTarget.style.setProperty('--rx', '0deg');
+  e.currentTarget.style.setProperty('--ry', '0deg');
+}
+
+/** Counts a stat up from zero the first time it scrolls into view ("3,500+", "1.3L", "54%"). */
+function CountUp({ value }: { value: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const inView = useInView(ref, { once: true, amount: 0.6 });
+  const match = /^([^\d]*)([\d,.]+)(.*)$/.exec(value);
+  const target = match ? Number.parseFloat(match[2]!.replace(/,/g, '')) : 0;
+  const decimals = match?.[2]?.includes('.') ? 1 : 0;
+  const [shown, setShown] = useState(prefersReducedMotion() || !match ? value : `${match[1]}0${match[3]}`);
+
+  useEffect(() => {
+    if (!inView || !match || prefersReducedMotion()) return;
+    const controls = animate(0, target, {
+      duration: 1.4,
+      ease: 'easeOut',
+      onUpdate: (v) => setShown(`${match[1]}${v.toLocaleString('en-IN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}${match[3]}`),
+    });
+    return () => controls.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inView]);
+
+  return (
+    <span ref={ref} aria-label={value}>
+      {shown}
+    </span>
+  );
+}
+
+function ScrollProgress() {
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, { stiffness: 120, damping: 30, mass: 0.3 });
+  return <motion.div aria-hidden style={{ scaleX }} className="fixed inset-x-0 top-0 z-50 h-1 origin-left bg-sun" />;
+}
+
 function useLandmarks() {
   const [items, setItems] = useState<Landmark[] | null>(null);
   useEffect(() => {
@@ -79,11 +131,13 @@ function Gallery() {
           return (
             <motion.li
               key={l.id}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
               viewport={{ once: true, amount: 0.15 }}
-              transition={{ delay: (i % 4) * 0.06 }}
-              className={`group relative overflow-hidden rounded-[28px] bg-charcoal shadow-lift ${span}`}
+              transition={{ delay: (i % 4) * 0.08, duration: 0.6 }}
+              onPointerMove={tilt}
+              onPointerLeave={untilt}
+              className={`tilt group relative overflow-hidden rounded-[28px] bg-charcoal shadow-lift ${span}`}
             >
               <a href={`/app?tab=explore&mode=heritage&q=${encodeURIComponent(`${l.name}: history, what to see and food nearby`)}`} className="block h-full" aria-label={`${l.name}: explore in the co-pilot`}>
                 {l.photoUri && (
@@ -102,6 +156,7 @@ function Gallery() {
                   </span>
                   <span className={`mt-1 block font-light ${i === 0 ? 'text-xl' : 'text-sm'}`}>{l.name}</span>
                 </span>
+                <span className="tilt-glare pointer-events-none absolute inset-0" aria-hidden />
                 {l.attribution && <span className="absolute right-3 bottom-1.5 max-w-[60%] truncate text-[9px] text-white/60">📷 {l.attribution}</span>}
               </a>
             </motion.li>
@@ -116,6 +171,7 @@ export function Landing() {
   const { t } = usePrefs();
   return (
     <>
+      <ScrollProgress />
       <a href="#content" className="btn btn-primary sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50">
         Skip to content
       </a>
@@ -156,19 +212,36 @@ export function Landing() {
 
       <main id="content">
         {/* ---------- Hero ---------- */}
-        <section className="relative mx-auto max-w-7xl px-4 pt-10 md:px-8 md:pt-14" aria-labelledby="hero-title">
+        <section className="relative isolate mx-auto max-w-7xl px-4 pt-12 md:px-8 md:pt-16" aria-labelledby="hero-title">
+          {/* drifting aurora glows */}
+          <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-24 -z-10 h-[38rem] overflow-hidden">
+            <div className="aurora aurora-sun absolute top-0 left-[4%] size-[34rem] rounded-full" />
+            <div className="aurora aurora-sky aurora-delay absolute top-24 right-[2%] size-[30rem] rounded-full" />
+          </div>
+
           <div className="flex justify-center">
-            <p className="kicker relative z-10 bg-surface/70 backdrop-blur">
-              <span className="size-2 rounded-full bg-sun" aria-hidden /> {t('land.kicker')}
+            <p className="kicker shine-border relative z-10 bg-surface/70 py-1.5 backdrop-blur">
+              <span className="relative flex size-2" aria-hidden>
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-sun opacity-75" />
+                <span className="relative inline-flex size-2 rounded-full bg-sun" />
+              </span>
+              {t('land.kicker')}
             </p>
           </div>
 
-          <div className="relative mt-12 flex justify-center md:mt-10">
-            <div aria-hidden className="sun-disc absolute top-1/2 left-1/2 size-[42vw] max-h-[440px] max-w-[440px] -translate-x-1/2 -translate-y-[55%] rounded-full md:size-[50vw]" />
-            <h1 id="hero-title" className="relative text-center">
+          {/* The stage: the sun is sized to the stage height, so it can never collide with the copy above or below. */}
+          <div className="relative mt-8 grid h-[clamp(15rem,36vw,28rem)] place-items-center md:mt-10">
+            <div aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 aspect-square h-full -translate-x-1/2">
+              <div className="absolute -inset-[7%] rounded-full border border-ink/[0.06]" />
+              <div className="orbit absolute inset-0 rounded-full border border-dashed border-sun/60">
+                <span className="orbit-rider absolute -top-[0.9rem] left-1/2 -ml-[0.9rem] grid size-7 place-items-center rounded-full bg-surface text-base shadow-soft md:size-9 md:text-xl">🛺</span>
+              </div>
+              <div className="sun-disc absolute inset-[9%] rounded-full" />
+            </div>
+            <h1 id="hero-title" className="relative z-10 text-center">
               <span className="sr-only">Sahayatri (सहयात्री), your verified co-pilot for Pune</span>
-              <span aria-hidden lang="mr" className="relative block font-deva leading-[1.05] text-[clamp(4.25rem,18vw,14.5rem)]">
-                <span className="pointer-events-none absolute inset-0 translate-x-[0.05em] translate-y-[0.05em] text-transparent opacity-40 [-webkit-text-stroke:2px_var(--color-ink)]">
+              <span aria-hidden lang="mr" className="relative block font-deva leading-[1.1] text-[clamp(4rem,15vw,12.5rem)]">
+                <span className="pointer-events-none absolute inset-0 translate-x-[0.045em] translate-y-[0.045em] text-transparent opacity-40 [-webkit-text-stroke:2px_var(--color-ink)]">
                   सहयात्री
                 </span>
                 {WORDMARK.map((g, i) => (
@@ -180,28 +253,50 @@ export function Landing() {
             </h1>
           </div>
 
-          <div className="relative mt-4 text-center">
-            <p style={{ animationDelay: '0.6s' }} className="animate-rise text-sm font-medium tracking-[0.55em] uppercase">
+          <div className="relative mt-6 text-center md:mt-8">
+            <p style={{ animationDelay: '0.6s' }} className="animate-rise text-xs font-semibold tracking-[0.6em] text-muted uppercase md:text-sm">
               Sahayatri
             </p>
-            <p style={{ animationDelay: '0.7s' }} className="animate-rise mx-auto mt-4 max-w-3xl text-3xl leading-tight font-light text-balance md:text-5xl">
-              {t('land.headline1')} <em className="font-serif text-[1.12em]">{t('land.verified')}</em> {t('land.headline2')} <em className="font-serif text-[1.12em]">{t('land.chaos')}</em>
+            <p style={{ animationDelay: '0.7s' }} className="animate-rise mx-auto mt-5 max-w-3xl text-[2rem] leading-[1.15] font-light text-balance md:text-[3.25rem]">
+              {t('land.headline1')} <em className="font-serif text-[1.12em]">{t('land.verified')}</em> {t('land.headline2')}{' '}
+              <em className="relative inline-block font-serif text-[1.12em] whitespace-nowrap">
+                {t('land.chaos')}
+                <svg aria-hidden viewBox="0 0 200 20" preserveAspectRatio="none" className="absolute -bottom-[0.18em] left-0 h-[0.32em] w-full overflow-visible text-sun">
+                  <motion.path
+                    d="M2 12 C 30 2, 50 20, 80 10 S 130 4, 160 12 S 190 8, 198 6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="5"
+                    strokeLinecap="round"
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ delay: 1.1, duration: 0.9, ease: 'easeInOut' }}
+                  />
+                </svg>
+              </em>
             </p>
-            <p style={{ animationDelay: '0.8s' }} className="animate-rise mx-auto mt-4 max-w-xl text-base text-pretty text-muted">
+            <p style={{ animationDelay: '0.8s' }} className="animate-rise mx-auto mt-6 max-w-xl text-base leading-relaxed text-pretty text-muted md:text-lg">
               {t('land.sub')}
             </p>
-            <div style={{ animationDelay: '0.9s' }} className="animate-rise mt-8 flex flex-wrap justify-center gap-3">
-              <a href="/app" className="btn btn-primary px-7 py-4 text-base">
+            <div style={{ animationDelay: '0.9s' }} className="animate-rise mt-9 flex flex-wrap justify-center gap-3">
+              <a href="/app" className="btn btn-primary shine px-7 py-4 text-base">
                 {t('land.cta')} <ArrowRight className="size-4" aria-hidden />
               </a>
               <a href="/app?tab=plan" className="btn px-7 py-4 text-base">
                 <CalendarHeart className="size-4" aria-hidden /> {t('tab.plan')}
               </a>
             </div>
+            <ul style={{ animationDelay: '1s' }} className="animate-rise mt-8 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-muted" aria-label="Highlights">
+              {['15 Google services', 'Gemini on Vertex AI · zero API keys', '80 automated tests', 'English · हिंदी · मराठी'].map((x) => (
+                <li key={x} className="flex items-center gap-1.5">
+                  <Check className="size-3.5 text-sun" aria-hidden /> {x}
+                </li>
+              ))}
+            </ul>
           </div>
 
           {/* preview cards, in normal flow (never overlapping), echoing the three-screen reference */}
-          <div className="mx-auto mt-16 grid max-w-5xl items-start gap-5 md:grid-cols-3" aria-label="Product preview">
+          <div className="mx-auto mt-14 grid max-w-5xl items-start gap-5 md:mt-20 md:grid-cols-3" aria-label="Product preview">
             <div className="panel animate-float p-5 [--tilt:-2deg] md:mt-10">
               <p className="text-xs font-medium text-muted">Safe Route · Tonight 10 PM</p>
               <p className="mt-1 text-xl font-light">Route safety</p>
@@ -308,7 +403,9 @@ export function Landing() {
               {STATS.map((s, i) => (
                 <div key={s.label} className={`${i === 0 ? 'card-dark' : i === 3 ? 'bg-sun text-[#1f1f1f] shadow-soft' : 'panel'} flex flex-col justify-between rounded-[28px] p-5`}>
                   <dt className="text-sm opacity-80">{s.label}</dt>
-                  <dd className="mt-6 text-4xl font-light tracking-tight md:text-5xl">{s.value}</dd>
+                  <dd className="mt-6 text-4xl font-light tracking-tight md:text-5xl">
+                    <CountUp value={s.value} />
+                  </dd>
                 </div>
               ))}
               <p className="col-span-2 text-xs text-muted">Sources: Pune City Police Road Safety Report 2024–25; Pune RTO; PMC; Pune Traffic Police black-spot lists.</p>
