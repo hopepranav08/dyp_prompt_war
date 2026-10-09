@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { DAY_MS, PUNE_CENTER, type Deps } from '../deps.js';
 import type { PlaceInfo } from '../lib/maps.js';
 import { COMPARE_PROMPT } from '../prompts.js';
-import { CompareAi, CompareRequest } from '../schemas.js';
+import { CompareAi, CompareRequest, CompareSuggestRequest, PRICE_TIERS } from '../schemas.js';
 import { areaSafety } from './explore.js';
 import { photoFor } from './photos.js';
 
@@ -32,6 +32,17 @@ export function ratingScore(rating: number | undefined, count: number | undefine
 
 export function compareRouter(deps: Deps) {
   const router = Router();
+
+  // Price-tier discovery: the best-rated places for a craving within ₹ / ₹₹ / ₹₹₹, ready to compare.
+  router.post('/compare/suggest', async (req, res) => {
+    const input = CompareSuggestRequest.parse(req.body);
+    const found = await deps.maps.searchPlaces(`${input.query} in Pune`, PUNE_CENTER, 8, [...PRICE_TIERS[input.tier]]);
+    const ranked = found
+      .filter((p) => (p.ratingCount ?? 0) >= 20)
+      .sort((a, b) => (ratingScore(b.rating, b.ratingCount) ?? 0) - (ratingScore(a.rating, a.ratingCount) ?? 0))
+      .slice(0, 3);
+    res.json({ places: ranked.map((p) => `${p.name}, ${p.address?.split(',').slice(-4, -3)[0]?.trim() ?? 'Pune'}`) });
+  });
 
   router.post('/compare', async (req, res) => {
     const input = CompareRequest.parse(req.body);
@@ -65,7 +76,7 @@ export function compareRouter(deps: Deps) {
       };
       const overall = Math.round(Object.values(scores).reduce((s, v) => s + v, 0) / 5);
       return {
-        place: { id: p.id, name: p.name, address: p.address, location: p.location, rating: p.rating, ratingCount: p.ratingCount, mapsUri: p.mapsUri },
+        place: { id: p.id, name: p.name, address: p.address, location: p.location, rating: p.rating, ratingCount: p.ratingCount, mapsUri: p.mapsUri, priceLevel: p.priceLevel },
         photoUri: photos[index] ?? null,
         scores,
         overall,

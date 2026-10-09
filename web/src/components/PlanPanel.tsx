@@ -1,7 +1,8 @@
-import { BadgeCheck, CloudRain, Footprints, Home, Lightbulb, Sparkles, Utensils } from 'lucide-react';
+import { BadgeCheck, CloudRain, Footprints, Home, Lightbulb, Navigation, Sparkles, Utensils } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useState, type FormEvent } from 'react';
 import { api } from '../lib/api';
+import { googleMapsStopsUrl } from '../lib/navigate';
 import { usePrefs } from '../lib/prefs';
 import type { PlanResult } from '../lib/types';
 import { ErrorNote, listItem, PlacePhoto, ScoreBadge, SectionTitle, Spinner } from './ui';
@@ -118,6 +119,16 @@ export function PlanPanel({ onResult }: { onResult: (r: PlanResult) => void }) {
                   <dd className="text-xl">₹{result.totals.transport}</dd>
                 </div>
               </dl>
+              {googleMapsStopsUrl(result.stops.flatMap((s) => (s.place?.location ? [s.place.location] : []))) && (
+                <a
+                  href={googleMapsStopsUrl(result.stops.flatMap((s) => (s.place?.location ? [s.place.location] : [])))!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn mt-4 w-full border-transparent bg-sun text-[#1f1f1f]"
+                >
+                  <Navigation className="size-4" aria-hidden /> Navigate the whole day in Google Maps
+                </a>
+              )}
               {result.totals.budget != null && (
                 <p className={`mt-3 text-xs ${underBudget ? 'text-[#8fe0ad]' : 'text-[#ffb3a6]'}`}>
                   {underBudget ? '✓' : '!'} ₹{result.totals.total} / ₹{result.totals.budget} budget per person

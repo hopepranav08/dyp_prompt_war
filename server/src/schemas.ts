@@ -56,6 +56,36 @@ export const PlanRequest = z.object({
   lang: LangSchema,
 });
 
+export const PRICE_TIERS = { cheap: ['PRICE_LEVEL_INEXPENSIVE'], moderate: ['PRICE_LEVEL_MODERATE'], expensive: ['PRICE_LEVEL_EXPENSIVE', 'PRICE_LEVEL_VERY_EXPENSIVE'] } as const;
+
+export const CompareSuggestRequest = z.object({
+  query: z.string().trim().min(2).max(80),
+  tier: z.enum(['cheap', 'moderate', 'expensive']),
+});
+
+export const BestTimeRequest = z.object({
+  placeId: z.string().regex(/^[\w-]{10,300}$/, 'invalid place id'),
+  origin: LatLngSchema.optional(),
+  lang: LangSchema,
+});
+
+export const FoodSafetyRequest = z.object({
+  name: z.string().trim().min(2).max(120),
+  lang: LangSchema,
+});
+
+export const EVENT_CATEGORIES = ['music', 'culture', 'festival', 'food', 'sports', 'tech', 'workshop', 'trek', 'community', 'other'] as const;
+
+export const EventCreateRequest = z.object({
+  title: z.string().trim().min(4).max(100),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'use YYYY-MM-DD'),
+  time: z.string().trim().max(20).default(''),
+  venue: z.string().trim().min(3).max(150),
+  category: z.enum(EVENT_CATEGORIES).default('community'),
+  description: z.string().trim().min(10).max(600),
+  lang: LangSchema,
+});
+
 export const FareRequest = z.object({
   origin: z.string().trim().min(2).max(200),
   destination: z.string().trim().min(2).max(200),
@@ -88,7 +118,7 @@ export const ExploreAi = z.object({
 
 export const REPORT_CATEGORIES = [
   'accident', 'traffic_jam', 'waterlogging', 'pothole', 'tree_fall', 'unsafe_area', 'harassment',
-  'streetlight_out', 'garbage', 'crime', 'fire', 'other',
+  'streetlight_out', 'garbage', 'crime', 'fire', 'food_safety', 'other',
 ] as const;
 
 export const ReportAi = z.object({
@@ -152,3 +182,43 @@ export const PlanAi = z.object({
   foodToTry: z.array(z.string()).max(4),
   tips: z.array(z.string()).max(3),
 });
+
+export const CrowdAi = z.object({
+  crowdByHour: z.array(z.object({ hour: z.number().int().min(0).max(23), level: z.number().min(0).max(100) })).max(24),
+  peakNote: z.string(),
+  quietNote: z.string(),
+  evidence: z.string(),
+});
+
+export const FoodAi = z.object({
+  hygieneScore: z.number().min(0).max(100),
+  verdict: z.enum(['looks_safe', 'some_concerns', 'serious_concerns', 'insufficient_data']),
+  summary: z.string(),
+  fdaFindings: z.array(z.object({ date: z.string(), action: z.string(), detail: z.string() })).max(4),
+  reviewSignals: z.array(z.object({ quote: z.string(), signal: z.enum(['positive', 'negative']) })).max(4),
+  tips: z.array(z.string()).max(3),
+});
+
+export const FoodAlertsAi = z.object({
+  actions: z.array(z.object({ date: z.string(), establishment: z.string(), area: z.string(), action: z.string(), reason: z.string() })).max(8),
+  summary: z.string(),
+});
+
+export const EventsAi = z.object({
+  events: z
+    .array(
+      z.object({
+        title: z.string(),
+        date: z.string(),
+        time: z.string(),
+        venue: z.string(),
+        area: z.string(),
+        category: z.enum(EVENT_CATEGORIES),
+        description: z.string(),
+        url: z.string(),
+      }),
+    )
+    .max(10),
+});
+
+export const ModerationAi = z.object({ ok: z.boolean(), note: z.string() });

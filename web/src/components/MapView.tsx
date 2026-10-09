@@ -3,13 +3,14 @@ import { MapPinned, Minus, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { usePrefs } from '../lib/prefs';
-import type { BlackSpot, ExplorePlace, LatLng, Report, ScoredRoute } from '../lib/types';
+import type { BlackSpot, CityEvent, ExplorePlace, LatLng, Report, ScoredRoute } from '../lib/types';
 
 export interface MapLayers {
   places: ExplorePlace[];
   routes: ScoredRoute[];
   selectedRouteId?: string;
   reports: Report[];
+  events?: CityEvent[];
   picked?: LatLng;
 }
 
@@ -53,6 +54,12 @@ const MAP_STYLE_DARK: google.maps.MapTypeStyle[] = [
 ];
 
 const STATUS_COLOR = { verified: 'var(--color-ok)', corroborated: 'var(--color-sun)', unverified: '#ffffff' } as const;
+const CATEGORY_EMOJI: Record<string, string> = {
+  pothole: '🕳️', waterlogging: '🌊', accident: '💥', traffic_jam: '🚦', tree_fall: '🌳', unsafe_area: '⚠️', harassment: '🚨',
+  streetlight_out: '💡', garbage: '🗑️', crime: '🚨', fire: '🔥', food_safety: '🍽️', other: '📍',
+};
+const EVENT_EMOJI: Record<string, string> = { music: '🎶', festival: '🪔', culture: '🎭', food: '🍛', tech: '💻', sports: '🏏', workshop: '🛠️', trek: '⛰️', community: '🤝' };
+type LayerId = 'blackspots' | 'reports' | 'events';
 
 /** Accessible HTML marker: a real <button> rendered into the map's overlay pane via OverlayView. */
 function HtmlMarker({ position, label, zIndex = 1, onClick, children }: { position: LatLng; label: string; zIndex?: number; onClick?: () => void; children: ReactNode }) {
@@ -137,8 +144,10 @@ function ZoomControls() {
   );
 }
 
-export function MapView({ apiKey, center, blackspots, places, routes, selectedRouteId, reports, picked, onPick }: Props) {
+export function MapView({ apiKey, center, blackspots, places, routes, selectedRouteId, reports, events = [], picked, onPick }: Props) {
   const { theme } = usePrefs();
+  const [layers, setLayers] = useState<Record<LayerId, boolean>>({ blackspots: true, reports: true, events: true });
+  const toggle = (id: LayerId) => setLayers((l) => ({ ...l, [id]: !l[id] }));
   const [open, setOpen] = useState<string | null>(null);
 
   const focusPoints = useMemo(() => {
@@ -163,6 +172,7 @@ export function MapView({ apiKey, center, blackspots, places, routes, selectedRo
   const blackspot = open?.startsWith('b:') ? blackspots.find((x) => `b:${x.id}` === open) : undefined;
   const report = open?.startsWith('r:') ? reports.find((x) => `r:${x.id}` === open) : undefined;
   const place = open?.startsWith('p:') ? places[Number(open.slice(2))] : undefined;
+  const event = open?.startsWith('e:') ? events.find((x) => `e:${x.id}` === open) : undefined;
 
   return (
     <APIProvider apiKey={apiKey} region="IN" language="en">
@@ -186,17 +196,29 @@ export function MapView({ apiKey, center, blackspots, places, routes, selectedRo
           <FitBounds points={focusPoints} />
           <ZoomControls />
 
-          {blackspots.map((b) => (
+          {layers.blackspots && blackspots.map((b) => (
             <HtmlMarker key={b.id} position={b} label={`Accident black spot: ${b.name}`} onClick={() => setOpen(`b:${b.id}`)}>
               <span className="grid size-6 place-items-center rounded-full border-2 border-white bg-charcoal text-[11px] font-bold text-sun shadow-soft">!</span>
             </HtmlMarker>
           ))}
 
-          {reports.map((r) => (
-            <HtmlMarker key={r.id} position={r.location} zIndex={20} label={`${r.status} report: ${r.title}`} onClick={() => setOpen(`r:${r.id}`)}>
-              <span className="block size-4 rotate-45 rounded-[4px] border-2 border-charcoal shadow-soft" style={{ background: STATUS_COLOR[r.status] }} />
-            </HtmlMarker>
-          ))}
+          {layers.reports &&
+            reports.map((r) => (
+              <HtmlMarker key={r.id} position={r.location} zIndex={20} label={`${r.status} report: ${r.title}`} onClick={() => setOpen(`r:${r.id}`)}>
+                <span className="grid size-8 place-items-center rounded-full border-[3px] text-base shadow-lift" style={{ borderColor: STATUS_COLOR[r.status], background: 'var(--color-surface)' }}>
+                  {CATEGORY_EMOJI[r.category] ?? '📍'}
+                </span>
+              </HtmlMarker>
+            ))}
+
+          {layers.events &&
+            events.map((e) =>
+              e.location ? (
+                <HtmlMarker key={e.id} position={e.location} zIndex={30} label={`Event: ${e.title}`} onClick={() => setOpen(`e:${e.id}`)}>
+                  <span className="grid size-9 place-items-center rounded-2xl border-[3px] border-white bg-charcoal text-base shadow-lift">{EVENT_EMOJI[e.category] ?? '📅'}</span>
+                </HtmlMarker>
+              ) : null,
+            )}
 
           {places.map((p, i) =>
             p.place?.location ? (
@@ -228,6 +250,13 @@ export function MapView({ apiKey, center, blackspots, places, routes, selectedRo
               </p>
             </InfoWindow>
           )}
+          {event?.location && (
+            <InfoWindow position={event.location} onCloseClick={() => setOpen(null)} headerContent={<strong>{event.title}</strong>}>
+              <p className="max-w-56 text-sm">
+                {event.date} {event.time} · {event.venue}
+              </p>
+            </InfoWindow>
+          )}
           {place?.place?.location && (
             <InfoWindow position={place.place.location} onCloseClick={() => setOpen(null)} headerContent={<strong>{place.name}</strong>}>
               <p className="max-w-56 text-sm">{place.why}</p>
@@ -235,17 +264,19 @@ export function MapView({ apiKey, center, blackspots, places, routes, selectedRo
           )}
         </Map>
 
-        <ul className="pointer-events-none absolute bottom-5 left-5 flex flex-wrap gap-1.5" aria-label="Map legend">
-          <li className="chip shadow-soft">
-            <span className="size-2.5 rounded-full bg-charcoal" aria-hidden /> Black spot
-          </li>
-          <li className="chip shadow-soft">
-            <span className="size-2.5 rounded-full bg-sun" aria-hidden /> Place
-          </li>
-          <li className="chip shadow-soft">
-            <span className="size-2.5 rotate-45 bg-ok" aria-hidden /> Verified report
-          </li>
-        </ul>
+        <div className="absolute bottom-5 left-5 flex flex-wrap gap-1.5" role="group" aria-label="Map layers">
+          {(
+            [
+              ['blackspots', '⚠️', `Black spots (${blackspots.length})`],
+              ['reports', '📣', `Reports (${reports.length})`],
+              ['events', '🎶', `Events (${events.length})`],
+            ] as const
+          ).map(([id, emoji, label]) => (
+            <button key={id} type="button" aria-pressed={layers[id]} onClick={() => toggle(id)} className={`chip shadow-soft transition-opacity ${layers[id] ? '' : 'opacity-50 line-through'}`}>
+              <span aria-hidden>{emoji}</span> {label}
+            </button>
+          ))}
+        </div>
       </div>
     </APIProvider>
   );

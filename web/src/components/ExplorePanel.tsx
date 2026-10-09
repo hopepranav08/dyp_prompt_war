@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../lib/api';
 import { usePrefs } from '../lib/prefs';
 import type { ExploreResult, LatLng } from '../lib/types';
+import { BestTime } from './BestTime';
 import { ErrorNote, listItem, PlacePhoto, ScoreBadge, SectionTitle, Spinner } from './ui';
 
 const SUGGESTIONS = {
@@ -179,6 +180,7 @@ export function ExplorePanel({ location, onResult }: Props) {
                           </dd>
                         </div>
                       </dl>
+                      {p.place?.id && <BestTime placeId={p.place.id} name={p.name} />}
                       {p.place?.mapsUri && (
                         <a href={p.place.mapsUri} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-ink underline">
                           Open in Google Maps <ExternalLink className="size-3" aria-hidden />

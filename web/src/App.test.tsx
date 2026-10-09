@@ -23,7 +23,7 @@ describe('App', () => {
     render(<App />);
     expect(await screen.findByText('Calm day in Pune')).toBeInTheDocument();
     const tabs = within(screen.getByRole('tablist', { name: 'Sahayatri features' })).getAllByRole('tab');
-    expect(tabs.map((t) => t.textContent)).toEqual(['Explore', 'Plan my day', 'Safe Route', 'Fair Fare', 'Report', 'Compare']);
+    expect(tabs.map((t) => t.textContent)).toEqual(['Explore', 'Plan my day', 'Safe Route', 'Fair Fare', 'Food Safety', 'Report', 'Compare', 'Events']);
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
   });
 
@@ -36,7 +36,7 @@ describe('App', () => {
     expect(screen.getByRole('tab', { name: 'Plan my day' })).toHaveAttribute('aria-selected', 'true');
     expect(await screen.findByRole('tabpanel', { name: 'Plan my day' })).toBeInTheDocument();
     await user.keyboard('{End}');
-    expect(screen.getByRole('tab', { name: 'Compare' })).toHaveFocus();
+    expect(screen.getByRole('tab', { name: 'Events' })).toHaveFocus();
   });
 
   it('labels every form field in the route planner', async () => {
@@ -102,5 +102,26 @@ describe('Preferences', () => {
     await user.click(await screen.findByRole('button', { name: /check the fare/i }));
     expect(await screen.findByText('Overcharging')).toBeInTheDocument();
     expect(screen.getByText(/दादा, मीटरने चला/)).toBeInTheDocument();
+  });
+});
+
+describe('Navigate in Google Maps', () => {
+  it('pins Google Maps to the chosen route with waypoints and the right travel mode', async () => {
+    const { googleMapsRouteUrl } = await import('./lib/navigate');
+    const path = Array.from({ length: 9 }, (_, i) => ({ lat: 18.5 + i / 100, lng: 73.8 + i / 100 }));
+    const url = new URL(googleMapsRouteUrl(path, 'TWO_WHEELER')!);
+    expect(url.searchParams.get('travelmode')).toBe('two-wheeler');
+    expect(url.searchParams.get('origin')).toBe('18.500000,73.800000');
+    expect(url.searchParams.get('waypoints')!.split('|')).toHaveLength(3);
+    expect(googleMapsRouteUrl([{ lat: 1, lng: 1 }])).toBeNull();
+  });
+});
+
+describe('Weather mood', () => {
+  it('turns live weather into a Pune quip with a practical tip', async () => {
+    const { weatherMood } = await import('./lib/weatherMood');
+    const rain = weatherMood({ weather: { tempC: 24, condition: 'Rain', conditionType: 'RAIN', isRaining: true, rainChance: 90 }, air: null, briefing: null }, 15);
+    expect(rain.quip).toMatch(/potholes/);
+    expect(weatherMood(null, 12).emoji).toBe('🛰️');
   });
 });

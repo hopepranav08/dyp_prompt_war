@@ -16,7 +16,11 @@
 | **Fair auto fare** by the Pune RTO tariff (₹30 + ₹20/km, +25% midnight–5 AM) plus phrases to say | — | ✅ |
 | **Whole-day plans** that fit time, budget, the hourly rain forecast and safety | — | ✅ |
 | Voice reports in **मराठी / हिंदी**, UI in English, हिंदी, मराठी | — | ✅ |
-| Best vs worst with **quoted review evidence** | — | ✅ |
+| Best vs worst with **quoted review evidence**, by ₹ / ₹₹ / ₹₹₹ tier | — | ✅ |
+| **Best time to visit**: predicted traffic × review crowds × rain × opening hours | — | ✅ |
+| **Food Safety Radar**: cited Maharashtra FDA actions + review hygiene signals | — | ✅ |
+| Pune **community events** board with moderated "organise an event" | — | ✅ |
+| One tap to **navigate our chosen safe route** in Google Maps (waypoint-pinned) | — | ✅ |
 
 ## Why it's different
 
@@ -27,7 +31,11 @@ Google Maps can already answer "where should I eat?". Sahayatri adds the layer i
 3. **Citizen reports are cross-checked, not taken on faith.** Research on crowdsourced civic data shows that AI alone is a weak verifier. Sahayatri uses Gemini's multimodal judgement as **one** signal among several: photo evidence, live weather, independent nearby reports and official hotspots. Together they produce a transparent **Trust Score**: *Unverified → Corroborated → Verified*.
 4. **Plan My Day.** Gemini (Maps-grounded) drafts an itinerary from a sentence like "history with my parents, must eat misal, ₹800". Every stop is verified on Places with a photo. Every leg gets a real route, a safety score and an **RTO-tariff auto fare**, and stops in rainy hours (Weather API hourly forecast) become indoor ones.
 5. **Fair Fare.** Auto overcharging and meter refusal are among Pune's most-reported commuter problems (1.3 lakh autos, 540 official stands). Real road distance × the official RTO tariff gives a verdict on the driver's quote, plus a Marathi/Hindi phrase card.
-6. **It speaks Pune.** Voice notes in **Marathi, Hindi or English** (including Hinglish) are transcribed, translated and structured, then routed to the right Pune helpline (Traffic 1095, PMC Disaster Cell, 112, MSEDCL 1912).
+6. **Best Time to Visit.** A small predictive model for every place: Google Routes' *predicted* traffic for each upcoming departure slot, crowd levels Gemini infers from real reviews, the Weather API rain forecast and Places opening hours (closed = 0). `score = 0.35·travel + 0.40·(1 − crowd) + 0.25·(1 − rain)`; tested in `services/bestTime.ts`.
+7. **Food Safety Radar.** In 2026 the Maharashtra FDA suspended licences across Pune (165 statewide in two months). Sahayatri lists recent Pune FDA actions (Search-grounded, cited), checks any eatery for FDA findings plus review hygiene signals, links the FDA helpline (1800-222-365), and adds a `food_safety` report category. It is careful to match the exact outlet and to note court reversals.
+8. **Community.** "What's on in Pune" (Search-grounded, geocoded onto the map) plus moderated, signed-in "Organise an event" posts that expire after the event (Firestore TTL).
+9. **Navigate.** Any safe route, fare route or whole-day plan opens in Google Maps with waypoints sampled from *our* chosen path, so navigation follows the safer alternative.
+10. **It speaks Pune.** Voice notes in **Marathi, Hindi or English** (including Hinglish) are transcribed, translated and structured, then routed to the right Pune helpline (Traffic 1095, PMC Disaster Cell, 112, MSEDCL 1912).
 
 ## Problem statement coverage
 
@@ -115,7 +123,7 @@ Gemini on **Vertex AI** · **Grounding with Google Maps** · **Grounding with Go
 npm test          # server (vitest + supertest) + web (vitest + Testing Library)
 ```
 
-There are **63 tests** covering geo maths and polyline decoding, the risk engine (black spots, night, rain, report trust filtering, tagging), the trust engine (each signal, the caps and clamping), every API route with fake Gemini and Maps (validation, the 502 mapping, AI-down fallback, corroboration upgrading a report to *Verified*, security headers, rate-limit headers), the prompt-injection wrapper, the RTO fare engine (minimum, per-km, night surcharge, luggage, verdicts), retry and timeout utilities, the Plan My Day pipeline (verified stops, scored legs, fare totals), landmarks, moderation (422), auth (401 on forged tokens, reputation signal, reporter-id privacy), language pass-through, and the UI (tabs, keyboard navigation, labels, disabled states, Marathi switch, dark mode, the fare-check flow).
+There are **80 tests** covering geo maths and polyline decoding, the risk engine (black spots, night, rain, report trust filtering, tagging), the trust engine (each signal, the caps and clamping), every API route with fake Gemini and Maps (validation, the 502 mapping, AI-down fallback, corroboration upgrading a report to *Verified*, security headers, rate-limit headers), the prompt-injection wrapper, the RTO fare engine (minimum, per-km, night surcharge, luggage, verdicts), retry and timeout utilities, the Plan My Day pipeline (verified stops, scored legs, fare totals), the best-time model and opening-hours logic, food-safety checks, events (sign-in required, moderation, past dates rejected), price-tier suggestions, Google Maps navigation URLs, weather quips, landmarks, moderation (422), auth (401 on forged tokens, reputation signal, reporter-id privacy), language pass-through, and the UI (tabs, keyboard navigation, labels, disabled states, Marathi switch, dark mode, the fare-check flow).
 
 ## Run locally
 

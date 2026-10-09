@@ -1,7 +1,8 @@
-import { Moon, Phone, ShieldAlert, Sun } from 'lucide-react';
+import { Moon, Navigation, Phone, ShieldAlert, Sun } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useState, type FormEvent } from 'react';
 import { api } from '../lib/api';
+import { googleMapsRouteUrl } from '../lib/navigate';
 import { usePrefs } from '../lib/prefs';
 import type { FareResult, FareVerdict } from '../lib/types';
 import { ErrorNote, SectionTitle, Spinner } from './ui';
@@ -141,6 +142,11 @@ export function FarePanel({ onResult }: { onResult: (r: FareResult) => void }) {
                   </div>
                 )}
               </dl>
+              {googleMapsRouteUrl(result.route.path) && (
+                <a href={googleMapsRouteUrl(result.route.path)!} target="_blank" rel="noopener noreferrer" className="btn btn-primary mt-4 w-full">
+                  <Navigation className="size-4" aria-hidden /> Open this route in Google Maps
+                </a>
+              )}
             </section>
 
             <section className="card-dark p-5">

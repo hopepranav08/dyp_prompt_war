@@ -2,6 +2,7 @@ import { ArrowRightLeft, Bike, Car, Footprints, Moon, Navigation, ShieldCheck, S
 import { motion } from 'motion/react';
 import { useState, type FormEvent } from 'react';
 import { api } from '../lib/api';
+import { googleMapsRouteUrl } from '../lib/navigate';
 import { usePrefs } from '../lib/prefs';
 import { formatHour, km, minutes } from '../lib/format';
 import type { RouteResult, RouteTag } from '../lib/types';
@@ -167,6 +168,12 @@ export function RoutePanel({ selectedId, onResult, onSelect }: Props) {
                         </div>
                       </div>
                     </button>
+                    {selected && googleMapsRouteUrl(r.path, mode) && (
+                      <a href={googleMapsRouteUrl(r.path, mode)!} target="_blank" rel="noopener noreferrer" className="btn btn-primary mt-2 w-full">
+                        <Navigation className="size-4" aria-hidden /> Navigate this route in Google Maps
+                        <span className="sr-only">(opens Google Maps)</span>
+                      </a>
+                    )}
                   </motion.li>
                 );
               })}

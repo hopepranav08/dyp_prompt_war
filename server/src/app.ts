@@ -9,7 +9,10 @@ import { currentUser, optionalAuth } from './lib/auth.js';
 import type { Deps } from './deps.js';
 import { AiError } from './lib/gemini.js';
 import { MapsError } from './lib/maps.js';
+import { bestTimeRouter } from './routes/besttime.js';
 import { compareRouter } from './routes/compare.js';
+import { eventsRouter } from './routes/events.js';
+import { foodRouter } from './routes/food.js';
 import { fareRouter } from './routes/fare.js';
 import { landmarksRouter } from './routes/landmarks.js';
 import { planRouter } from './routes/plan.js';
@@ -80,7 +83,7 @@ export function createApp(deps: Deps, staticDir?: string, options: AppOptions = 
   });
   const landmarks = landmarksRouter(deps);
   const pulse = pulseRouter(deps);
-  api.use(exploreRouter(deps), routeRouter(deps), reportRouter(deps), compareRouter(deps), pulse, planRouter(deps), fareRouter(deps), landmarks);
+  api.use(exploreRouter(deps), routeRouter(deps), reportRouter(deps), compareRouter(deps), pulse, planRouter(deps), fareRouter(deps), landmarks, bestTimeRouter(deps), foodRouter(deps), eventsRouter(deps));
   api.use((_req, res) => {
     res.status(404).json({ error: 'Not found' });
   });

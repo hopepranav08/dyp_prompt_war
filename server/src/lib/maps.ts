@@ -1,5 +1,6 @@
 import { decodePolyline, type LatLng } from './geo.js';
 import { isTransientStatus, withRetry } from './retry.js';
+import type { OpeningPeriod } from '../services/bestTime.js';
 import type { RouteCandidate } from '../services/risk.js';
 
 export type TravelMode = 'DRIVE' | 'TWO_WHEELER' | 'WALK';
@@ -21,6 +22,9 @@ export interface PlaceInfo {
   /** Resource name of the first photo (places/…/photos/…); resolve with photoUri(). */
   photoName?: string;
   photoAttribution?: string;
+  /** Weekly opening periods (only fetched with details). */
+  periods?: OpeningPeriod[];
+  primaryType?: string;
 }
 
 export interface Weather {
@@ -49,7 +53,9 @@ export interface AirQuality {
 export interface MapsClient {
   getPlace(placeId: string, withReviews?: boolean): Promise<PlaceInfo | null>;
   searchPlace(query: string, bias: LatLng, withReviews?: boolean): Promise<PlaceInfo | null>;
-  computeRoutes(origin: Endpoint, destination: Endpoint, mode: TravelMode, alternatives?: boolean): Promise<RouteCandidate[]>;
+  /** Top places for a query, optionally filtered by Google price levels. */
+  searchPlaces(query: string, bias: LatLng, max: number, priceLevels?: string[]): Promise<PlaceInfo[]>;
+  computeRoutes(origin: Endpoint, destination: Endpoint, mode: TravelMode, alternatives?: boolean, departureTime?: Date): Promise<RouteCandidate[]>;
   weather(at: LatLng): Promise<Weather>;
   forecastHours(at: LatLng, hours: number): Promise<HourForecast[]>;
   airQuality(at: LatLng): Promise<AirQuality>;
@@ -66,6 +72,7 @@ export class MapsError extends Error {
 }
 
 const BASE_FIELDS = ['id', 'displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'priceLevel', 'googleMapsUri', 'accessibilityOptions', 'photos'];
+const DETAIL_FIELDS = ['reviews', 'regularOpeningHours', 'primaryType'];
 const RAIN_TYPES = /RAIN|SHOWER|THUNDER|DRIZZLE/;
 
 interface RawPlace {
@@ -80,6 +87,8 @@ interface RawPlace {
   accessibilityOptions?: Record<string, boolean>;
   reviews?: Array<{ text?: { text?: string } }>;
   photos?: Array<{ name: string; authorAttributions?: Array<{ displayName?: string }> }>;
+  regularOpeningHours?: { periods?: OpeningPeriod[] };
+  primaryType?: string;
 }
 
 const toWaypoint = (e: Endpoint) =>
@@ -110,7 +119,7 @@ export class GoogleMapsClient implements MapsClient {
   }
 
   async getPlace(placeId: string, withReviews = false): Promise<PlaceInfo | null> {
-    const fields = withReviews ? [...BASE_FIELDS, 'reviews'] : BASE_FIELDS;
+    const fields = withReviews ? [...BASE_FIELDS, ...DETAIL_FIELDS] : BASE_FIELDS;
     const raw = await this.call<RawPlace>(`https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`, {
       fieldMask: fields.join(','),
     });
@@ -118,7 +127,7 @@ export class GoogleMapsClient implements MapsClient {
   }
 
   async searchPlace(query: string, bias: LatLng, withReviews = false): Promise<PlaceInfo | null> {
-    const fields = (withReviews ? [...BASE_FIELDS, 'reviews'] : BASE_FIELDS).map((f) => `places.${f}`);
+    const fields = (withReviews ? [...BASE_FIELDS, ...DETAIL_FIELDS] : BASE_FIELDS).map((f) => `places.${f}`);
     const body = {
       textQuery: query,
       maxResultCount: 1,
@@ -134,13 +143,31 @@ export class GoogleMapsClient implements MapsClient {
     return first ? toPlace(first) : null;
   }
 
-  async computeRoutes(origin: Endpoint, destination: Endpoint, mode: TravelMode, alternatives = true): Promise<RouteCandidate[]> {
+  async searchPlaces(query: string, bias: LatLng, max: number, priceLevels?: string[]): Promise<PlaceInfo[]> {
+    const body = {
+      textQuery: query,
+      maxResultCount: Math.min(10, Math.max(1, max)),
+      languageCode: 'en',
+      locationBias: { circle: { center: { latitude: bias.lat, longitude: bias.lng }, radius: 25_000 } },
+      ...(priceLevels?.length && { priceLevels }),
+    };
+    const raw = await this.call<{ places?: RawPlace[] }>('https://places.googleapis.com/v1/places:searchText', {
+      method: 'POST',
+      body: JSON.stringify(body),
+      fieldMask: BASE_FIELDS.map((f) => `places.${f}`).join(','),
+    });
+    return (raw.places ?? []).map(toPlace);
+  }
+
+  async computeRoutes(origin: Endpoint, destination: Endpoint, mode: TravelMode, alternatives = true, departureTime?: Date): Promise<RouteCandidate[]> {
     const body = {
       origin: toWaypoint(origin),
       destination: toWaypoint(destination),
       travelMode: mode,
       ...(mode !== 'WALK' && { routingPreference: 'TRAFFIC_AWARE' }),
       computeAlternativeRoutes: alternatives,
+      // A future departure time makes Routes return Google's predicted traffic for that hour.
+      ...(departureTime && mode !== 'WALK' && { departureTime: departureTime.toISOString() }),
       languageCode: 'en-IN',
       regionCode: 'IN',
       units: 'METRIC',
@@ -231,5 +258,7 @@ function toPlace(raw: RawPlace): PlaceInfo {
     reviews: raw.reviews?.map((r) => r.text?.text ?? '').filter(Boolean).slice(0, 5),
     photoName: photo?.name,
     photoAttribution: photo?.authorAttributions?.map((a) => a.displayName).filter(Boolean).join(', ') || undefined,
+    periods: raw.regularOpeningHours?.periods,
+    primaryType: raw.primaryType,
   };
 }

@@ -64,4 +64,31 @@ Task: build a realistic one-day Pune itinerary using Google Maps grounding.
 - costPerPerson: realistic ₹ entry/food cost for that stop (0 if free). Include at least one local food stop.
 - tip: one specific insider tip per stop (best dish, entry gate, photo spot, closing time).`;
 
+export const CROWD_PROMPT = `${SHARED}
+Task: estimate how crowded a Pune place is at each hour (0 = empty, 100 = packed) from its type and what real Google reviewers say about crowds, queues and timings.
+- Return crowdByHour for hours 6 to 23 for the given weekday.
+- evidence: a short quote or paraphrase from the reviews that supports the pattern, or "Based on typical patterns for this type of place".`;
+
+export const FOOD_SAFETY_PROMPT = `${SHARED}
+Task: food-safety check for a Pune eatery using Google Search plus the provided Google reviews.
+- Search for Maharashtra FDA (Food and Drug Administration) inspections, licence suspensions, improvement notices, seizures or food-poisoning reports that name this exact establishment. Only report findings that clearly match it; never guess.
+- If a finding was later reversed by a court or the licence restored, say so in the detail.
+- reviewSignals: quote real review phrases about hygiene, freshness, cleanliness or stomach upsets.
+- hygieneScore: 0-100 (higher is safer). Use "insufficient_data" when there is little evidence either way.
+- Be fair and factual: this is consumer guidance, not an accusation. Tips should help the diner stay safe.`;
+
+export const FOOD_ALERTS_PROMPT = `${SHARED}
+Task: using Google Search, list the most recent Maharashtra FDA food-safety enforcement actions in the Pune division (licence suspensions, seizures, sealing, notices) from the last 60 days.
+- Only include actions reported by credible news or official sources, newest first, with the date as reported.
+- summary: one sentence on the overall trend. Mention that some suspensions have been revoked by courts if reported.`;
+
+export const EVENTS_PROMPT = `${SHARED}
+Task: using Google Search, find real public events happening in Pune in the next 14 days (concerts, festivals, cultural programmes, food fests, sports, tech meetups, workshops, treks).
+- Only include events with a confirmed date and venue; date in YYYY-MM-DD.
+- url: an official or ticketing page if available, else "".
+- Prefer a diverse mix of categories and areas.`;
+
+export const EVENT_MODERATION_PROMPT = `${SHARED}
+Task: moderate a community event submission for a public city board. ok=false for spam, scams, hate, adult content, political attacks, personal data, or anything unsafe or illegal. note: one short reason.`;
+
 export const wrapUserInput = (text: string) => `<user_input>${text.replaceAll('<', '‹')}</user_input>`;

@@ -12,16 +12,28 @@ import { ErrorNote, ScoreBadge, SectionTitle, Spinner } from './ui';
 interface Props {
   location: LatLng;
   reports: Report[];
+  /** Text handed over from another tab (e.g. Food Safety → report this eatery). */
+  initialText?: string;
   onLocate: (p: LatLng) => void;
   onCreated: (r: Report) => void;
 }
 
 const MAX_RECORD_MS = 30_000;
 
-export function ReportPanel({ location, reports, onLocate, onCreated }: Props) {
+/** One-tap report types: Pune's most common civic complaints (Bengaluru-style pothole reporting included). */
+const QUICK = [
+  ['🕳️', 'Pothole', 'Pothole: '],
+  ['🌊', 'Waterlogging', 'Waterlogging: '],
+  ['🍽️', 'Food safety', 'Food safety issue: '],
+  ['💡', 'Streetlight out', 'Streetlight not working: '],
+  ['⚠️', 'Unsafe spot', 'Unsafe area: '],
+  ['🗑️', 'Garbage', 'Garbage dump: '],
+] as const;
+
+export function ReportPanel({ location, reports, initialText = '', onLocate, onCreated }: Props) {
   const { t } = usePrefs();
   const session = useSession();
-  const [text, setText] = useState('');
+  const [text, setText] = useState(initialText);
   const [image, setImage] = useState<{ payload: MediaPayload; preview: string } | null>(null);
   const [audio, setAudio] = useState<{ payload: MediaPayload; url: string } | null>(null);
   const [recording, setRecording] = useState(false);
@@ -107,6 +119,13 @@ export function ReportPanel({ location, reports, onLocate, onCreated }: Props) {
         <label htmlFor="rep-text" className="block text-sm font-semibold">
           {t('report.what')}
         </label>
+        <div className="flex flex-wrap gap-1.5" aria-label="Quick report types">
+          {QUICK.map(([emoji, label, prefix]) => (
+            <button key={label} type="button" className="chip hover:bg-cream" onClick={() => setText((t) => (t.startsWith(prefix) ? t : `${prefix}${t}`))}>
+              <span aria-hidden>{emoji}</span> {label}
+            </button>
+          ))}
+        </div>
         <textarea
           id="rep-text"
           className="field min-h-24"

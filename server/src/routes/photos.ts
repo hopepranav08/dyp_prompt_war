@@ -9,6 +9,6 @@ export async function photoFor(maps: MapsClient, place: PlaceInfo | null | undef
 /** Strips internal fields before a place goes to the browser. */
 export function publicPlace(p: PlaceInfo | null | undefined) {
   if (!p) return null;
-  const { reviews: _reviews, photoName: _photoName, accessibility: _accessibility, ...rest } = p;
+  const { reviews: _reviews, photoName: _photoName, accessibility: _accessibility, periods: _periods, ...rest } = p;
   return rest;
 }

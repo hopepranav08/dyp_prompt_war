@@ -1,13 +1,15 @@
-import { ArrowLeft, CalendarHeart, Compass, IndianRupee, Megaphone, Route, Scale } from 'lucide-react';
+import { ArrowLeft, CalendarHeart, Compass, IndianRupee, Megaphone, PartyPopper, Route, Scale, UtensilsCrossed } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { api } from '../lib/api';
 import type { MessageKey } from '../lib/i18n';
 import { usePrefs } from '../lib/prefs';
-import type { BlackSpot, ExplorePlace, LatLng, PlanResult, ScoredRoute } from '../lib/types';
+import type { BlackSpot, CityEvent, ExplorePlace, LatLng, PlanResult, ScoredRoute } from '../lib/types';
 import { AuthButton, LangSwitcher, ThemeToggle } from './Controls';
+import { EventsPanel } from './EventsPanel';
 import { ExplorePanel } from './ExplorePanel';
 import { FarePanel } from './FarePanel';
+import { FoodPanel } from './FoodPanel';
 import { MapView, type MapLayers } from './MapView';
 import { PlanPanel } from './PlanPanel';
 import { PulseBar } from './PulseBar';
@@ -23,8 +25,10 @@ const TABS = [
   { id: 'plan', label: 'tab.plan', Icon: CalendarHeart },
   { id: 'route', label: 'tab.route', Icon: Route },
   { id: 'fare', label: 'tab.fare', Icon: IndianRupee },
+  { id: 'food', label: 'tab.food', Icon: UtensilsCrossed },
   { id: 'report', label: 'tab.report', Icon: Megaphone },
   { id: 'compare', label: 'tab.compare', Icon: Scale },
+  { id: 'events', label: 'tab.events', Icon: PartyPopper },
 ] as const satisfies ReadonlyArray<{ id: string; label: MessageKey; Icon: unknown }>;
 type TabId = (typeof TABS)[number]['id'];
 
@@ -50,6 +54,8 @@ export function CoPilot() {
   const [blackspots, setBlackspots] = useState<BlackSpot[]>([]);
   const [layers, setLayers] = useState<MapLayers>({ places: [], routes: [], reports: [] });
   const [picked, setPicked] = useState<LatLng>(PUNE);
+  const [reportPrefill, setReportPrefill] = useState('');
+  const [events, setEvents] = useState<CityEvent[]>([]);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   useEffect(() => {
@@ -102,7 +108,7 @@ export function CoPilot() {
             <LangSwitcher />
           </div>
 
-          <div role="tablist" aria-label="Sahayatri features" className="grid grid-cols-3 gap-1 rounded-[28px] bg-surface/50 p-1.5 shadow-soft backdrop-blur sm:grid-cols-6 lg:mx-auto lg:flex lg:rounded-full">
+          <div role="tablist" aria-label="Sahayatri features" className="grid grid-cols-4 gap-1 rounded-[28px] bg-surface/50 p-1.5 shadow-soft backdrop-blur lg:mx-auto lg:flex lg:rounded-full">
             {TABS.map(({ id, label, Icon }, i) => {
               const active = tab === id;
               return (
@@ -160,8 +166,19 @@ export function CoPilot() {
                     }
                   />
                 )}
+                {tab === 'food' && (
+                  <FoodPanel
+                    onReport={(text) => {
+                      setReportPrefill(text);
+                      setTab('report');
+                    }}
+                  />
+                )}
+                {tab === 'events' && <EventsPanel onEvents={setEvents} />}
                 {tab === 'report' && (
                   <ReportPanel
+                    key={reportPrefill}
+                    initialText={reportPrefill}
                     location={picked}
                     reports={layers.reports}
                     onLocate={setPicked}
@@ -186,6 +203,7 @@ export function CoPilot() {
                 center={PUNE}
                 blackspots={blackspots}
                 {...layers}
+                events={events}
                 picked={tab === 'report' ? picked : undefined}
                 onPick={tab === 'report' ? setPicked : undefined}
               />

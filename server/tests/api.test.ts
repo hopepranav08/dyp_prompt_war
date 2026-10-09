@@ -6,6 +6,7 @@ import { AiError, extractJson, extractSources, type AiClient, type JsonRequest }
 import type { MapsClient, PlaceInfo } from '../src/lib/maps.js';
 import { wrapUserInput } from '../src/prompts.js';
 import { accessibilityScore, ratingScore } from '../src/routes/compare.js';
+import { MemoryEventStore } from '../src/services/eventStore.js';
 import { MemoryReportStore } from '../src/services/reportStore.js';
 
 /** Fake Gemini: returns canned JSON per system prompt and records every request. */
@@ -33,6 +34,7 @@ const maps: MapsClient = {
   weather: async () => ({ tempC: 30, condition: 'Rain', conditionType: 'RAIN', isRaining: true, rainChance: 90 }),
   airQuality: async () => ({ aqi: 40, category: 'Good' }),
   forecastHours: async () => [{ hour: 14, tempC: 30, condition: 'Rain', rainChance: 80 }],
+  searchPlaces: async (q, _bias, max, levels) => [place('s1', `Cheap ${q}`, { ratingCount: 300, rating: 4.6, address: 'Lane 1, Deccan, Pune, MH 411004, India', priceLevel: levels?.[0] }), place('s2', 'Tiny', { ratingCount: 3 })].slice(0, max),
   photoUri: async (name) => `https://lh3.googleusercontent.com/${name}`,
 };
 
@@ -65,6 +67,31 @@ const REPLIES = {
     summary: 'A beats B',
   },
   "today's city briefing": { briefing: 'Calm day', alerts: [] },
+  'estimate how crowded': {
+    crowdByHour: Array.from({ length: 24 }, (_, hour) => ({ hour, level: hour >= 17 ? 90 : 20 })),
+    peakNote: 'Packed after 5 PM',
+    quietNote: 'Calm mornings',
+    evidence: 'long queue in the evening',
+  },
+  'food-safety check': {
+    hygieneScore: 42,
+    verdict: 'some_concerns',
+    summary: 'Mixed hygiene signals',
+    fdaFindings: [{ date: '2026-09-12', action: 'Licence suspended', detail: 'Cockroaches found; later restored' }],
+    reviewSignals: [{ quote: 'tables were sticky', signal: 'negative' }],
+    tips: ['Prefer freshly cooked items'],
+  },
+  'FDA food-safety enforcement': {
+    actions: [{ date: '2026-09-15', establishment: 'Some Club', area: 'Camp', action: 'Licence suspended', reason: 'Pests in kitchen' }],
+    summary: 'Crackdown continues',
+  },
+  'real public events': {
+    events: [
+      { title: 'Sawai Gandharva', date: '2099-12-10', time: '18:00', venue: 'Ramanbaug', area: 'Shivajinagar', category: 'music', description: 'Classical music', url: '' },
+      { title: 'Old fest', date: '2000-01-01', time: '', venue: 'Somewhere', area: 'Pune', category: 'festival', description: 'Past', url: '' },
+    ],
+  },
+  'moderate a community event': { ok: true, note: 'ok' },
   'one-day Pune itinerary': {
     title: 'Peshwa trail',
     summary: 'History and misal',
@@ -82,7 +109,7 @@ let deps: Deps;
 
 beforeEach(() => {
   ai = new FakeAi(REPLIES);
-  deps = { ai, maps, reports: new MemoryReportStore(), browserMapsKey: 'browser-key', now: () => new Date('2026-10-09T06:00:00Z') };
+  deps = { ai, maps, reports: new MemoryReportStore(), events: new MemoryEventStore(), browserMapsKey: 'browser-key', now: () => new Date('2026-10-09T06:00:00Z') };
 });
 
 describe('security & platform', () => {
@@ -305,5 +332,82 @@ describe('moderation, auth and reputation', () => {
   it('sets a restrictive Permissions-Policy', async () => {
     const res = await request(createApp(deps)).get('/api/health');
     expect(res.headers['permissions-policy']).toContain('payment=()');
+  });
+});
+
+describe('POST /api/besttime', () => {
+  it('scores upcoming slots from predicted traffic, review crowds and rain', async () => {
+    const res = await request(createApp(deps)).post('/api/besttime').send({ placeId: 'ChIJplace_12345' });
+    expect(res.status).toBe(200);
+    expect(res.body.slots).toHaveLength(6);
+    expect(res.body.slots.filter((s: { best: boolean }) => s.best)).toHaveLength(1);
+    expect(res.body.crowd.evidence).toContain('queue');
+  });
+
+  it('rejects malformed place ids', async () => {
+    expect((await request(createApp(deps)).post('/api/besttime').send({ placeId: '../etc' })).status).toBe(400);
+  });
+});
+
+describe('food safety radar', () => {
+  it('checks an eatery with cited FDA findings, review signals and the helpline', async () => {
+    const res = await request(createApp(deps)).post('/api/food/check').send({ name: 'Alpha Misal' });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ verdict: 'some_concerns', helpline: '1800-222-365', communityReports: 0 });
+    expect(ai.calls[0]?.tools).toEqual(['search']);
+  });
+
+  it('lists recent Pune FDA actions', async () => {
+    const res = await request(createApp(deps)).get('/api/food/alerts');
+    expect(res.body.actions[0].area).toBe('Camp');
+  });
+
+  it('accepts food_safety as a report category', async () => {
+    (REPLIES['messy citizen report'] as Record<string, unknown>).category = 'food_safety';
+    try {
+      const res = await request(createApp(deps)).post('/api/report').send({ text: 'got sick after biryani', location: { lat: 18.5, lng: 73.85 } });
+      expect(res.body.report.category).toBe('food_safety');
+    } finally {
+      (REPLIES['messy citizen report'] as Record<string, unknown>).category = 'waterlogging';
+    }
+  });
+});
+
+describe('community events', () => {
+  const verifier = { verify: async () => ({ uid: 'org1', anonymous: false }) };
+
+  it('lists only upcoming Search-grounded events with venues on the map', async () => {
+    const res = await request(createApp(deps)).get('/api/events');
+    expect(res.body.events.map((e: { title: string }) => e.title)).toEqual(['Sawai Gandharva']);
+    expect(res.body.events[0].location).toBeDefined();
+  });
+
+  it('requires sign-in to organise, moderates, and hides the organiser id', async () => {
+    const event = { title: 'Mutha riverside cleanup', date: '2099-11-20', venue: 'Z Bridge', description: 'Bring gloves, we provide bags and chai.' };
+    expect((await request(createApp(deps)).post('/api/events').send(event)).status).toBe(401);
+    const app = createApp({ ...deps, auth: verifier });
+    const res = await request(app).post('/api/events').set('Authorization', 'Bearer t').send(event);
+    expect(res.status).toBe(201);
+    expect(res.body.event.organizerId).toBeUndefined();
+    const list = await request(app).get('/api/events');
+    expect(list.body.events.some((e: { source: string }) => e.source === 'community')).toBe(true);
+  });
+
+  it('rejects events in the past', async () => {
+    const app = createApp({ ...deps, auth: verifier });
+    const res = await request(app).post('/api/events').set('Authorization', 'Bearer t').send({ title: 'Old meetup', date: '2001-01-01', venue: 'FC Road', description: 'This already happened long ago.' });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('POST /api/compare/suggest', () => {
+  it('returns well-reviewed places within a price tier', async () => {
+    const res = await request(createApp(deps)).post('/api/compare/suggest').send({ query: 'misal', tier: 'cheap' });
+    expect(res.status).toBe(200);
+    expect(res.body.places).toEqual(['Cheap misal in Pune, Deccan']); // locality pulled from the address; the 3-review place is filtered out
+  });
+
+  it('validates the tier', async () => {
+    expect((await request(createApp(deps)).post('/api/compare/suggest').send({ query: 'misal', tier: 'luxury' })).status).toBe(400);
   });
 });

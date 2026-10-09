@@ -216,3 +216,55 @@ export interface Landmark {
   photoUri: string | null;
   attribution?: string;
 }
+
+export interface BestTimeSlot {
+  hour: number;
+  travelMin: number | null;
+  crowd: number;
+  rainChance: number;
+  open: boolean | null;
+  score: number;
+  best: boolean;
+}
+
+export interface BestTimeResult {
+  place: { id: string; name: string };
+  slots: BestTimeSlot[];
+  crowd: { peakNote: string; quietNote: string; evidence: string } | null;
+  model: string;
+}
+
+export interface FoodCheck {
+  place: PlaceInfo | null;
+  photoUri: string | null;
+  hygieneScore: number;
+  verdict: 'looks_safe' | 'some_concerns' | 'serious_concerns' | 'insufficient_data';
+  summary: string;
+  fdaFindings: Array<{ date: string; action: string; detail: string }>;
+  reviewSignals: Array<{ quote: string; signal: 'positive' | 'negative' }>;
+  tips: string[];
+  communityReports: number;
+  sources: Source[];
+  helpline: string;
+}
+
+export interface FoodAlerts {
+  actions: Array<{ date: string; establishment: string; area: string; action: string; reason: string }>;
+  summary: string;
+  sources: Source[];
+  helpline: string;
+}
+
+export interface CityEvent {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  venue: string;
+  area: string;
+  category: string;
+  description: string;
+  url?: string;
+  location?: LatLng;
+  source: 'web' | 'community';
+}

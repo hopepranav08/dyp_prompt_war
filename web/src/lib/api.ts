@@ -1,6 +1,6 @@
 import { auth } from './auth';
 import { getLang } from './prefs';
-import type { BlackSpot, CompareResult, ExploreResult, FareResult, Landmark, LatLng, PlanResult, Pulse, Report, RouteResult } from './types';
+import type { BestTimeResult, BlackSpot, CityEvent, CompareResult, ExploreResult, FareResult, FoodAlerts, FoodCheck, Landmark, LatLng, PlanResult, Pulse, Report, RouteResult } from './types';
 
 export class ApiError extends Error {}
 
@@ -41,6 +41,12 @@ export const api = {
   fare: (origin: string, destination: string, quoted?: number, luggage = 0, hour?: number) => post<FareResult>('/api/fare', { origin, destination, quoted, luggage, hour }),
   report: (payload: { text?: string; image?: MediaPayload; audio?: MediaPayload; location: LatLng }) => post<{ report: Report }>('/api/report', payload),
   compare: (places: string[]) => post<CompareResult>('/api/compare', { places }),
+  compareSuggest: (query: string, tier: 'cheap' | 'moderate' | 'expensive') => request<{ places: string[] }>('/api/compare/suggest', { method: 'POST', body: JSON.stringify({ query, tier }) }),
+  bestTime: (placeId: string, origin?: LatLng) => post<BestTimeResult>('/api/besttime', { placeId, origin }),
+  foodAlerts: () => request<FoodAlerts>(`/api/food/alerts?lang=${getLang()}`),
+  foodCheck: (name: string) => post<FoodCheck>('/api/food/check', { name }),
+  events: () => request<{ events: CityEvent[] }>(`/api/events?lang=${getLang()}`),
+  createEvent: (e: { title: string; date: string; time: string; venue: string; category: string; description: string }) => post<{ event: CityEvent }>('/api/events', e),
 };
 
 /** Reads a Blob as bare base64 (no data: prefix). */
