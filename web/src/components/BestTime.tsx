@@ -53,7 +53,7 @@ export function BestTime({ placeId, name }: { placeId: string; name: string }) {
       <ol className="mt-3 grid grid-cols-6 items-end gap-1.5" aria-label="Score by departure time">
         {data.slots.map((s) => (
           <li key={s.hour} className="flex flex-col items-center gap-1 text-center">
-            <span className="font-mono text-[10px]">{s.open === false ? 'shut' : s.score}</span>
+            <span className="font-mono text-[11px]">{s.open === false ? 'shut' : s.score}</span>
             <div className="flex h-20 w-full items-end overflow-hidden rounded-lg bg-ink/5">
               <motion.div
                 className={`w-full rounded-lg ${s.best ? 'bg-sun' : s.open === false ? 'bg-ink/15' : 'bg-ink/35'}`}
@@ -62,8 +62,8 @@ export function BestTime({ placeId, name }: { placeId: string; name: string }) {
                 transition={{ duration: 0.6 }}
               />
             </div>
-            <span className={`text-[10px] ${s.best ? 'font-bold' : 'text-muted'}`}>{fmt(s.hour)}</span>
-            <span className="text-[9px] text-muted" title="Predicted drive from city centre">
+            <span className={`text-[11px] ${s.best ? 'font-bold' : 'text-muted'}`}>{fmt(s.hour)}</span>
+            <span className="text-[10px] text-muted" title="Predicted drive from city centre">
               {s.travelMin !== null ? `${s.travelMin}m` : '–'}
             </span>
           </li>
@@ -77,7 +77,7 @@ export function BestTime({ placeId, name }: { placeId: string; name: string }) {
           <li className="flex gap-1.5 italic">“{data.crowd.evidence}”</li>
         </ul>
       )}
-      <p className="mt-2 flex gap-1.5 text-[10px] text-muted">
+      <p className="mt-2 flex gap-1.5 text-[11px] text-muted">
         <CloudRain className="size-3 shrink-0" aria-hidden /> {data.model}
       </p>
     </motion.section>

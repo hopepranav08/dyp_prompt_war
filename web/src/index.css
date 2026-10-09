@@ -8,16 +8,16 @@
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
   /* Soft-premium palette: mist backdrop, paper→cream cards, sunflower accent, charcoal panels */
-  --color-ink: #1f1f1f;
+  --color-ink: #191919;
   --color-charcoal: #262626;
-  --color-paper: #f6f6f4;
+  --color-paper: #f8f8f6;
   --color-cream: #f8efcb;
   --color-surface: #ffffff;
   --color-sun: #f7cd4b;
   --color-sun-soft: #fbe9a6;
-  --color-mist: #b9bfc9;
-  --color-mist-deep: #a3aab6;
-  --color-muted: #57554f;
+  --color-mist: #d5dae2;
+  --color-mist-deep: #c3c9d3;
+  --color-muted: #46443f;
   --color-ok: #2a7346;
   --color-danger: #b3362a;
   --color-primary: #262626;

@@ -157,7 +157,7 @@ function Gallery() {
                   <span className={`mt-1 block font-light ${i === 0 ? 'text-xl' : 'text-sm'}`}>{l.name}</span>
                 </span>
                 <span className="tilt-glare pointer-events-none absolute inset-0" aria-hidden />
-                {l.attribution && <span className="absolute right-3 bottom-1.5 max-w-[60%] truncate text-[9px] text-white/60">📷 {l.attribution}</span>}
+                {l.attribution && <span className="absolute right-3 bottom-1.5 max-w-[60%] truncate text-[10px] text-white/60">📷 {l.attribution}</span>}
               </a>
             </motion.li>
           );

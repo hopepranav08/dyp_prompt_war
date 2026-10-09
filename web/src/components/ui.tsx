@@ -112,7 +112,7 @@ export function PlacePhoto({ src, alt, attribution, className = '' }: { src?: st
           onError={(e) => e.currentTarget.remove()}
         />
       )}
-      {attribution && <figcaption className="absolute right-2 bottom-1.5 max-w-[80%] truncate rounded-full bg-black/45 px-2 py-0.5 text-[10px] text-white/90">📷 {attribution}</figcaption>}
+      {attribution && <figcaption className="absolute right-2 bottom-1.5 max-w-[80%] truncate rounded-full bg-black/45 px-2 py-0.5 text-[11px] text-white/90">📷 {attribution}</figcaption>}
     </figure>
   );
 }

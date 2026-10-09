@@ -96,7 +96,7 @@ export function PulseBar() {
           <span className="text-3xl font-light">{aqi ?? '—'}</span>
         </div>
         <p className="mt-2 text-xs leading-tight">{pulse?.air?.category ?? '…'}</p>
-        <p className="text-[10px] text-muted">Universal AQI · higher is cleaner</p>
+        <p className="text-[11px] text-muted">Universal AQI · higher is cleaner</p>
       </div>
 
       {/* Briefing + alerts */}

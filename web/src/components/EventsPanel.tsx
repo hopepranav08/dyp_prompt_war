@@ -72,9 +72,9 @@ export function EventsPanel({ onEvents }: { onEvents: (e: CityEvent[]) => void }
             return (
               <motion.li key={e.id} custom={i} variants={listItem} initial="hidden" animate="show" className="card flex gap-4 p-4 transition-transform hover:-translate-y-0.5">
                 <div className="flex w-14 shrink-0 flex-col items-center justify-center rounded-2xl bg-sun py-2 text-[#1f1f1f]">
-                  <span className="text-[10px] font-semibold uppercase">{d.weekday}</span>
+                  <span className="text-[11px] font-semibold uppercase">{d.weekday}</span>
                   <span className="text-2xl leading-none font-semibold">{d.day}</span>
-                  <span className="text-[10px] uppercase">{d.month}</span>
+                  <span className="text-[11px] uppercase">{d.month}</span>
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
