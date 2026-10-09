@@ -1,0 +1,16 @@
+{
+  "name": "sahayatri",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Sahayatri: a verified, AI-powered city co-pilot for exploring, staying safe and navigating Pune",
+  "workspaces": ["server", "web"],
+  "scripts": {
+    "dev:server": "npm run dev -w server",
+    "dev:web": "npm run dev -w web",
+    "build": "npm run build -w web && npm run build -w server",
+    "test": "npm test -w server && npm test -w web",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w web",
+    "start": "npm start -w server"
+  },
+  "engines": { "node": ">=22" }
+}
