@@ -148,7 +148,7 @@ export function MapView({ apiKey, center, blackspots, places, routes, selectedRo
   return (
     <APIProvider apiKey={apiKey} region="IN" language="en">
       <div className="panel relative h-full min-h-72 overflow-hidden p-2" role="region" aria-label="Map of Pune with places, routes, accident black spots and citizen reports">
-        <div className="absolute top-5 left-6 z-10">
+        <div className="absolute top-5 left-5 z-10 rounded-2xl bg-white/85 px-4 py-2 shadow-soft backdrop-blur">
           <p className="text-2xl font-light">Map session</p>
           <p className="text-xs text-muted">{blackspots.length} black spots · {reports.length} live reports</p>
         </div>
